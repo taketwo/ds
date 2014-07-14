@@ -115,7 +115,7 @@ pcl::DepthSenseGrabber::configureDepthNode ()
   config.framerate = 30;
   config.mode = DepthSense::DepthNode::CAMERA_MODE_CLOSE_MODE;
   config.saturation = true;
-  depth_node_.setEnableVerticesFloatingPoint (true);
+  depth_node_.setEnableVertices (true);
   context_.requestControl (depth_node_, 0);
   depth_node_.setConfiguration (config);
   depth_node_.newSampleReceivedEvent ().connect (this, &pcl::DepthSenseGrabber::onDepthDataReceived);
@@ -124,6 +124,21 @@ pcl::DepthSenseGrabber::configureDepthNode ()
 void
 pcl::DepthSenseGrabber::onDepthDataReceived (DepthSense::DepthNode node, DepthSense::DepthNode::NewSampleReceivedData data)
 {
-  std::cout << "Depth data arrived" << std::endl;
+  if (num_slots<sig_cb_depth_sense_point_cloud> () > 0)
+  {
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ> (320, 240));
+    for (int i = 0; i < 76800; i++)
+    {
+      //if (data.vertices[i].z > 100 || data.vertices[i].z < 2000)
+      //{
+        //cloud->points[i] = pcl::PointXYZ (0, 0, 0);
+        //continue;
+      //}
+      cloud->points[i].x = data.vertices[i].x;
+      cloud->points[i].y = data.vertices[i].y;
+      cloud->points[i].z = data.vertices[i].z;
+    }
+    point_cloud_signal_->operator () (cloud);
+  }
 }
 
