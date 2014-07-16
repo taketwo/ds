@@ -75,11 +75,20 @@ namespace pcl
             return (instance);
           }
 
-          std::vector<DepthSense::Device>
+          inline std::vector<DepthSense::Device>
           getDevices ()
           {
             return (context_.getDevices ());
           }
+
+          DepthSense::Device
+          getDeviceByIndex (size_t index);
+
+          DepthSense::Device
+          getDeviceBySerialNumber (const std::string& sn);
+
+          DepthSense::Device
+          getDevice (const std::string& device_id);
 
         private:
 

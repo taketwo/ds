@@ -52,3 +52,27 @@ pcl::io::depth_sense::DepthSenseDeviceManager::DepthSenseDeviceManager ()
   }
 }
 
+DepthSense::Device
+pcl::io::depth_sense::DepthSenseDeviceManager::getDeviceByIndex (size_t index)
+{
+  // TODO: check if exists
+  return (context_.getDevices ().at (index));
+}
+
+DepthSense::Device
+pcl::io::depth_sense::DepthSenseDeviceManager::getDeviceBySerialNumber (const std::string& sn)
+{
+  std::vector<DepthSense::Device> devices = context_.getDevices ();
+  for (size_t i = 0; i < devices.size (); ++i)
+    if (devices[i].getSerialNumber () == sn)
+      return (devices[i]);
+  THROW_IO_EXCEPTION ("device with serial number %s is not connected", sn.c_str ());
+  return (devices[0]);  // never reached, needed just to silence -Wreturn-type warning
+}
+
+DepthSense::Device
+pcl::io::depth_sense::DepthSenseDeviceManager::getDevice (const std::string& device_id)
+{
+  throw "not implemented";
+}
+
