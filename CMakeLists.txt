@@ -11,6 +11,7 @@ set(DEPTHSENSESDK_LIBRARIES ${DEPTHSENSESDK_LIBRARY_DIR}/libDepthSense.so ${DEPT
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 add_definitions(-fcolor-diagnostics)
+add_definitions(-std=c++11)
 
 include_directories(
   include

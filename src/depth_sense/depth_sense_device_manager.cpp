@@ -36,11 +36,13 @@
  */
 
 #include <pcl/io/io_exception.h>
+
 #include "depth_sense/depth_sense_device_manager.h"
 
 boost::mutex pcl::io::depth_sense::DepthSenseDeviceManager::mutex_;
 
 pcl::io::depth_sense::DepthSenseDeviceManager::DepthSenseDeviceManager ()
+: active_devices_ (0)
 {
   try
   {

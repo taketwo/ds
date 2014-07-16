@@ -41,6 +41,7 @@
 #include <boost/utility.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/thread/mutex.hpp>
+#include <boost/thread.hpp>
 
 #include <pcl/pcl_exports.h>
 
@@ -109,6 +110,33 @@ namespace pcl
             node.setConfiguration (config);
           }
 
+          void
+          startDevice ()
+          {
+            context_.startNodes ();
+            boost::mutex::scoped_lock lock (mutex_);
+            if (active_devices_++ == 0)
+            {
+              std::cout << "first active device: starting thread" << std::endl;
+              depth_sense_thread_ = boost::thread (&DepthSense::Context::run, &context_);
+            }
+          }
+
+          void
+          stopDevice ()
+          {
+            boost::mutex::scoped_lock lock (mutex_);
+            if (active_devices_ == 0)
+              return;
+            if (--active_devices_ == 0)
+            {
+              std::cout << "last active device: stopping thread" << std::endl;
+              context_.stopNodes ();
+              context_.quit ();
+              depth_sense_thread_.join ();
+            }
+          }
+
         private:
 
           DepthSenseDeviceManager ();
@@ -116,6 +144,11 @@ namespace pcl
           DepthSense::Context context_;
 
           static boost::mutex mutex_;
+
+          // thread where the grabbing takes place
+          boost::thread depth_sense_thread_;
+
+          size_t active_devices_;
 
       };
 

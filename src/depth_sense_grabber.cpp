@@ -35,17 +35,31 @@
  *
  */
 
+#include "depth_sense/depth_sense_device_manager.h"
 #include "depth_sense_grabber.h"
 
 pcl::DepthSenseGrabber::DepthSenseGrabber ()
 : Grabber ()
+, is_running_ (false)
 {
+  using namespace pcl::io::depth_sense;
+  DepthSenseDeviceManager::Ptr manager = DepthSenseDeviceManager::getInstance ();
+  std::cout << "There are " << manager->getDevices ().size () << " devices connected" << std::endl;
+  auto device = manager->getDeviceBySerialNumber ("YZVF0780251000095M");
+  std::vector<DepthSense::Node> nodes = device.getNodes ();
+  std::cout << "Found " << nodes.size () << " nodes" << std::endl;
+  for (size_t i = 0; i < nodes.size (); ++i)
+    if (nodes[i].is<DepthSense::DepthNode> ())
+      depth_node_ = nodes[i].as<DepthSense::DepthNode> ();
+
   point_cloud_signal_ = createSignal<sig_cb_depth_sense_point_cloud> ();
 }
 
 pcl::DepthSenseGrabber::~DepthSenseGrabber () throw ()
 {
-  stop ();
+  if (is_running_)
+    stop ();
+
   // TODO: don't forget to update this with new callbacks
   disconnect_all_slots<sig_cb_depth_sense_point_cloud> ();
 }
@@ -53,52 +67,32 @@ pcl::DepthSenseGrabber::~DepthSenseGrabber () throw ()
 void
 pcl::DepthSenseGrabber::start ()
 {
-  // TODO: may throw if another grabber created context
-  context_ = DepthSense::Context::create ("localhost");
+  if (is_running_)
+    return;
 
-  std::vector<DepthSense::Device> devices = context_.getDevices ();
-  if (devices.size ())
+  if (depth_node_.isSet ())
   {
-    std::vector<DepthSense::Node> nodes = devices[0].getNodes ();
-    std::cout << "Found " << nodes.size () << " nodes" << std::endl;
-    for (size_t i = 0; i < nodes.size (); ++i)
-    {
-      if (nodes[i].is<DepthSense::DepthNode> ())
-      {
-        depth_node_ = nodes[i].as<DepthSense::DepthNode> ();
-        configureDepthNode ();
-        context_.registerNode (depth_node_);
-      }
-    }
+    configureDepthNode ();
+    pcl::io::depth_sense::DepthSenseDeviceManager::getInstance ()->registerNode (depth_node_);
   }
-
-  context_.startNodes ();
-
-  grabber_thread_ = boost::thread (&DepthSense::Context::run, &context_);
+  pcl::io::depth_sense::DepthSenseDeviceManager::getInstance ()->startDevice ();
+  is_running_ = true;
 }
 
 void
 pcl::DepthSenseGrabber::stop ()
 {
-  context_.stopNodes ();
   if (depth_node_.isSet ())
-    context_.unregisterNode (depth_node_);
-  // TODO: figure out how to terminate properly
-  context_.quit ();
-  //grabber_thread_.interrupt ();
-  grabber_thread_.join ();
+    pcl::io::depth_sense::DepthSenseDeviceManager::getInstance ()->unregisterNode (depth_node_);
+
+  pcl::io::depth_sense::DepthSenseDeviceManager::getInstance ()->stopDevice ();
+  is_running_ = false;
 }
 
 bool
 pcl::DepthSenseGrabber::isRunning () const
 {
-  return (false);
-}
-
-std::string
-pcl::DepthSenseGrabber::getName () const
-{
-  return (std::string ("DepthSenseGrabber"));
+  return (is_running_);
 }
 
 float
@@ -116,9 +110,8 @@ pcl::DepthSenseGrabber::configureDepthNode ()
   config.mode = DepthSense::DepthNode::CAMERA_MODE_CLOSE_MODE;
   config.saturation = true;
   depth_node_.setEnableVertices (true);
-  context_.requestControl (depth_node_, 0);
-  depth_node_.setConfiguration (config);
   depth_node_.newSampleReceivedEvent ().connect (this, &pcl::DepthSenseGrabber::onDepthDataReceived);
+  pcl::io::depth_sense::DepthSenseDeviceManager::getInstance ()->configureNode (depth_node_, config);
 }
 
 void

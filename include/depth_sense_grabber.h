@@ -44,8 +44,6 @@
 
 #include <DepthSense.hxx>
 
-#include <boost/thread.hpp>
-
 namespace pcl
 {
 
@@ -73,7 +71,10 @@ namespace pcl
       isRunning () const;
 
       virtual std::string
-      getName () const;
+      getName () const
+      {
+        return (std::string ("DepthSenseGrabber"));
+      }
 
       virtual float
       getFramesPerSecond () const;
@@ -89,11 +90,10 @@ namespace pcl
       // signals to indicate whether new clouds are available
       boost::signals2::signal<sig_cb_depth_sense_point_cloud>* point_cloud_signal_;
 
-      // thread where the grabbing takes place
-      boost::thread grabber_thread_;
-
       DepthSense::Context context_;
       DepthSense::DepthNode depth_node_;
+
+      bool is_running_;
 
   };
 
