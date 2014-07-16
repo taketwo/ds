@@ -35,67 +35,20 @@
  *
  */
 
-#ifndef PCL_IO_DEPTH_SENSE_DEVICE_MANAGER_H
-#define PCL_IO_DEPTH_SENSE_DEVICE_MANAGER_H
+#include <pcl/io/io_exception.h>
+#include "depth_sense/depth_sense_device_manager.h"
 
-#include <boost/utility.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/thread/mutex.hpp>
+boost::mutex pcl::io::depth_sense::DepthSenseDeviceManager::mutex_;
 
-#include <pcl/pcl_exports.h>
-
-#include <DepthSense.hxx>
-
-namespace pcl
+pcl::io::depth_sense::DepthSenseDeviceManager::DepthSenseDeviceManager ()
 {
-
-  namespace io
+  try
   {
-
-    namespace depth_sense
-    {
-
-      class PCL_EXPORTS DepthSenseDeviceManager : boost::noncopyable
-      {
-
-        public:
-
-          typedef boost::shared_ptr<DepthSenseDeviceManager> Ptr;
-
-          static Ptr&
-          getInstance ()
-          {
-            static Ptr instance;
-            if (!instance)
-            {
-              boost::mutex::scoped_lock lock (mutex_);
-              if (!instance)
-                instance.reset (new DepthSenseDeviceManager);
-            }
-            return (instance);
-          }
-
-          std::vector<DepthSense::Device>
-          getDevices ()
-          {
-            return (context_.getDevices ());
-          }
-
-        private:
-
-          DepthSenseDeviceManager ();
-
-          DepthSense::Context context_;
-
-          static boost::mutex mutex_;
-
-      };
-
-    } // namespace depth_sense
-
-  } // namespace io
-
-} // namespace pcl
-
-#endif /* PCL_IO_DEPTH_SENSE_DEVICE_MANAGER_H */
+    context_ = DepthSense::Context::create ("localhost");
+  }
+  catch (...)  // TODO: catch only specific exceptions?
+  {
+    THROW_IO_EXCEPTION ("failed to initialize DepthSense context");
+  }
+}
 

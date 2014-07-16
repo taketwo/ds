@@ -28,6 +28,7 @@ add_definitions(
 )
 
 add_executable(grabber
+  src/depth_sense/depth_sense_device_manager.cpp
   src/depth_sense_grabber.cpp
   src/grabber.cpp
 )
