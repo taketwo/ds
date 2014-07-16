@@ -90,6 +90,25 @@ namespace pcl
           DepthSense::Device
           getDevice (const std::string& device_id);
 
+          inline void
+          registerNode (DepthSense::Node node)
+          {
+            context_.registerNode (node);
+          }
+
+          inline void
+          unregisterNode (DepthSense::Node node)
+          {
+            context_.unregisterNode (node);
+          }
+
+          template <typename NodeT, typename ConfigT> void
+          configureNode (NodeT node, ConfigT config)
+          {
+            context_.requestControl (node, 0);
+            node.setConfiguration (config);
+          }
+
         private:
 
           DepthSenseDeviceManager ();
