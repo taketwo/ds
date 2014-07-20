@@ -35,23 +35,17 @@
  *
  */
 
-#include "depth_sense/depth_sense_device_manager.h"
 #include "depth_sense_grabber.h"
+#include "depth_sense/depth_sense_device_manager.h"
+
+using namespace pcl::io::depth_sense;
 
 pcl::DepthSenseGrabber::DepthSenseGrabber ()
 : Grabber ()
 , is_running_ (false)
+, confidence_threshold_ (50)
 {
-  using namespace pcl::io::depth_sense;
-  DepthSenseDeviceManager::Ptr manager = DepthSenseDeviceManager::getInstance ();
-  std::cout << "There are " << manager->getDevices ().size () << " devices connected" << std::endl;
-  auto device = manager->getDeviceBySerialNumber ("YZVF0780251000095M");
-  std::vector<DepthSense::Node> nodes = device.getNodes ();
-  std::cout << "Found " << nodes.size () << " nodes" << std::endl;
-  for (size_t i = 0; i < nodes.size (); ++i)
-    if (nodes[i].is<DepthSense::DepthNode> ())
-      depth_node_ = nodes[i].as<DepthSense::DepthNode> ();
-
+  device_id_ = DepthSenseDeviceManager::getInstance ()->captureDevice ("YZVF0780251000095M", this);
   point_cloud_signal_ = createSignal<sig_cb_depth_sense_point_cloud> ();
 }
 
@@ -59,6 +53,8 @@ pcl::DepthSenseGrabber::~DepthSenseGrabber () throw ()
 {
   if (is_running_)
     stop ();
+
+  DepthSenseDeviceManager::getInstance ()->releaseDevice (device_id_);
 
   // TODO: don't forget to update this with new callbacks
   disconnect_all_slots<sig_cb_depth_sense_point_cloud> ();
@@ -70,22 +66,15 @@ pcl::DepthSenseGrabber::start ()
   if (is_running_)
     return;
 
-  if (depth_node_.isSet ())
-  {
-    configureDepthNode ();
-    pcl::io::depth_sense::DepthSenseDeviceManager::getInstance ()->registerNode (depth_node_);
-  }
-  pcl::io::depth_sense::DepthSenseDeviceManager::getInstance ()->startDevice ();
+  DepthSenseDeviceManager::getInstance ()->reconfigureDevice (device_id_);
+  DepthSenseDeviceManager::getInstance ()->startDevice (device_id_);
   is_running_ = true;
 }
 
 void
 pcl::DepthSenseGrabber::stop ()
 {
-  if (depth_node_.isSet ())
-    pcl::io::depth_sense::DepthSenseDeviceManager::getInstance ()->unregisterNode (depth_node_);
-
-  pcl::io::depth_sense::DepthSenseDeviceManager::getInstance ()->stopDevice ();
+  DepthSenseDeviceManager::getInstance ()->stopDevice (device_id_);
   is_running_ = false;
 }
 
@@ -102,16 +91,24 @@ pcl::DepthSenseGrabber::getFramesPerSecond () const
 }
 
 void
-pcl::DepthSenseGrabber::configureDepthNode ()
+pcl::DepthSenseGrabber::setConfidenceThreshold (int threshold)
 {
-  DepthSense::DepthNode::Configuration config = depth_node_.getConfiguration ();
+  confidence_threshold_ = threshold;
+  DepthSenseDeviceManager::getInstance ()->reconfigureDevice (device_id_);
+}
+
+void
+pcl::DepthSenseGrabber::configureDepthNode (DepthSense::DepthNode node)
+{
+  DepthSense::DepthNode::Configuration config = node.getConfiguration ();
   config.frameFormat = DepthSense::FRAME_FORMAT_QVGA;
   config.framerate = 30;
   config.mode = DepthSense::DepthNode::CAMERA_MODE_CLOSE_MODE;
-  config.saturation = true;
-  depth_node_.setEnableVertices (true);
-  depth_node_.newSampleReceivedEvent ().connect (this, &pcl::DepthSenseGrabber::onDepthDataReceived);
-  pcl::io::depth_sense::DepthSenseDeviceManager::getInstance ()->configureNode (depth_node_, config);
+  config.saturation = false;
+  // TODO: check signals and enable corresponding data sources
+  node.setEnableVertices (true);
+  node.setConfidenceThreshold (confidence_threshold_);
+  node.setConfiguration (config);
 }
 
 void
@@ -119,6 +116,7 @@ pcl::DepthSenseGrabber::onDepthDataReceived (DepthSense::DepthNode node, DepthSe
 {
   if (num_slots<sig_cb_depth_sense_point_cloud> () > 0)
   {
+    std::cout << data.vertices.size () << std::endl;
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ> (320, 240));
     for (int i = 0; i < 76800; i++)
     {

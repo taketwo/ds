@@ -47,6 +47,14 @@
 namespace pcl
 {
 
+  namespace io
+  {
+    namespace depth_sense
+    {
+      class DepthSenseDeviceManager;
+    }
+  }
+
   class PCL_EXPORTS DepthSenseGrabber : public Grabber
   {
 
@@ -55,6 +63,11 @@ namespace pcl
       typedef
         void (sig_cb_depth_sense_point_cloud)
           (const boost::shared_ptr<const pcl::PointCloud<pcl::PointXYZ> >&);
+
+      enum Mode
+      {
+        DepthSense_QVGA_30Hz = 0,
+      };
 
       DepthSenseGrabber ();
 
@@ -79,21 +92,32 @@ namespace pcl
       virtual float
       getFramesPerSecond () const;
 
+      void
+      setConfidenceThreshold (int threshold);
+
     private:
 
       void
-      configureDepthNode ();
+      configureDepthNode (DepthSense::DepthNode node);
 
       void
       onDepthDataReceived (DepthSense::DepthNode node, DepthSense::DepthNode::NewSampleReceivedData data);
 
+      void
+      onColorDataReceived (DepthSense::ColorNode node, DepthSense::ColorNode::NewSampleReceivedData data)
+      {
+      }
+
+      friend pcl::io::depth_sense::DepthSenseDeviceManager;
+
       // signals to indicate whether new clouds are available
       boost::signals2::signal<sig_cb_depth_sense_point_cloud>* point_cloud_signal_;
 
-      DepthSense::Context context_;
-      DepthSense::DepthNode depth_node_;
+      std::string device_id_;
 
       bool is_running_;
+
+      int confidence_threshold_;
 
   };
 

@@ -50,6 +50,8 @@
 namespace pcl
 {
 
+  class DepthSenseGrabber;
+
   namespace io
   {
 
@@ -76,70 +78,36 @@ namespace pcl
             return (instance);
           }
 
-          inline std::vector<DepthSense::Device>
-          getDevices ()
+          inline size_t
+          getNumDevices ()
           {
-            return (context_.getDevices ());
+            return (context_.getDevices ().size ());
           }
 
-          DepthSense::Device
-          getDeviceByIndex (size_t index);
+          std::string
+          captureDevice (size_t index, DepthSenseGrabber* grabber);
 
-          DepthSense::Device
-          getDeviceBySerialNumber (const std::string& sn);
-
-          DepthSense::Device
-          getDevice (const std::string& device_id);
-
-          inline void
-          registerNode (DepthSense::Node node)
-          {
-            context_.registerNode (node);
-          }
-
-          inline void
-          unregisterNode (DepthSense::Node node)
-          {
-            context_.unregisterNode (node);
-          }
-
-          template <typename NodeT, typename ConfigT> void
-          configureNode (NodeT node, ConfigT config)
-          {
-            context_.requestControl (node, 0);
-            node.setConfiguration (config);
-          }
+          std::string
+          captureDevice (const std::string& sn, DepthSenseGrabber* grabber);
 
           void
-          startDevice ()
-          {
-            context_.startNodes ();
-            boost::mutex::scoped_lock lock (mutex_);
-            if (active_devices_++ == 0)
-            {
-              std::cout << "first active device: starting thread" << std::endl;
-              depth_sense_thread_ = boost::thread (&DepthSense::Context::run, &context_);
-            }
-          }
+          releaseDevice (const std::string& sn);
 
           void
-          stopDevice ()
-          {
-            boost::mutex::scoped_lock lock (mutex_);
-            if (active_devices_ == 0)
-              return;
-            if (--active_devices_ == 0)
-            {
-              std::cout << "last active device: stopping thread" << std::endl;
-              context_.stopNodes ();
-              context_.quit ();
-              depth_sense_thread_.join ();
-            }
-          }
+          reconfigureDevice (const std::string& sn);
+
+          void
+          startDevice (const std::string& sn);
+
+          void
+          stopDevice (const std::string& sn);
 
         private:
 
           DepthSenseDeviceManager ();
+
+          std::string
+          captureDevice (DepthSense::Device device, DepthSenseGrabber* grabber);
 
           DepthSense::Context context_;
 
@@ -149,6 +117,15 @@ namespace pcl
           boost::thread depth_sense_thread_;
 
           size_t active_devices_;
+
+          struct Dev
+          {
+            DepthSenseGrabber* grabber;
+            DepthSense::DepthNode depth_node;
+            DepthSense::ColorNode color_node;
+          };
+
+          std::map<std::string, Dev> captured_devices_;
 
       };
 
