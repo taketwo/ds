@@ -44,9 +44,11 @@ pcl::DepthSenseGrabber::DepthSenseGrabber ()
 : Grabber ()
 , is_running_ (false)
 , confidence_threshold_ (50)
+, color_data_ (640 * 480 * 3)
 {
   device_id_ = DepthSenseDeviceManager::getInstance ()->captureDevice ("YZVF0780251000095M", this);
   point_cloud_signal_ = createSignal<sig_cb_depth_sense_point_cloud> ();
+  point_cloud_rgba_signal_ = createSignal<sig_cb_depth_sense_point_cloud_rgba> ();
 }
 
 pcl::DepthSenseGrabber::~DepthSenseGrabber () throw ()
@@ -58,6 +60,7 @@ pcl::DepthSenseGrabber::~DepthSenseGrabber () throw ()
 
   // TODO: don't forget to update this with new callbacks
   disconnect_all_slots<sig_cb_depth_sense_point_cloud> ();
+  disconnect_all_slots<sig_cb_depth_sense_point_cloud_rgba> ();
 }
 
 void
@@ -102,34 +105,76 @@ pcl::DepthSenseGrabber::configureDepthNode (DepthSense::DepthNode node)
 {
   DepthSense::DepthNode::Configuration config = node.getConfiguration ();
   config.frameFormat = DepthSense::FRAME_FORMAT_QVGA;
-  config.framerate = 30;
+  config.framerate = FRAMERATE;
   config.mode = DepthSense::DepthNode::CAMERA_MODE_CLOSE_MODE;
   config.saturation = false;
-  // TODO: check signals and enable corresponding data sources
-  node.setEnableVertices (true);
+  node.setEnableVerticesFloatingPoint (true);
+  node.setEnableUvMap (true);
+  // TODO: deprecated
   node.setConfidenceThreshold (confidence_threshold_);
   node.setConfiguration (config);
 }
 
 void
+pcl::DepthSenseGrabber::configureColorNode (DepthSense::ColorNode node)
+{
+  DepthSense::ColorNode::Configuration config = node.getConfiguration ();
+  config.frameFormat = DepthSense::FRAME_FORMAT_VGA;
+  config.compression = DepthSense::COMPRESSION_TYPE_MJPEG;
+  config.powerLineFrequency = DepthSense::POWER_LINE_FREQUENCY_50HZ;
+  config.framerate = FRAMERATE;
+  node.setEnableColorMap (true);
+  node.setConfiguration (config);
+  //node.setBrightness(0);
+  //node.setContrast(5);
+  //node.setSaturation(5);
+  //node.setHue(0);
+  //node.setGamma(3);
+  //node.setWhiteBalance(4650);
+  //node.setSharpness(5);
+  //node.setWhiteBalanceAuto(true);
+}
+
+void
 pcl::DepthSenseGrabber::onDepthDataReceived (DepthSense::DepthNode node, DepthSense::DepthNode::NewSampleReceivedData data)
 {
-  if (num_slots<sig_cb_depth_sense_point_cloud> () > 0)
+  bool need_xyz = num_slots<sig_cb_depth_sense_point_cloud> () > 0;
+  bool need_xyzrgba = num_slots<sig_cb_depth_sense_point_cloud_rgba> () > 0;
+
+  if (need_xyz)
   {
-    std::cout << data.vertices.size () << std::endl;
-    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ> (320, 240));
-    for (int i = 0; i < 76800; i++)
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ> (WIDTH, HEIGHT));
+    for (int i = 0; i < SIZE; i++)
     {
-      //if (data.vertices[i].z > 100 || data.vertices[i].z < 2000)
-      //{
-        //cloud->points[i] = pcl::PointXYZ (0, 0, 0);
-        //continue;
-      //}
-      cloud->points[i].x = data.vertices[i].x;
-      cloud->points[i].y = data.vertices[i].y;
-      cloud->points[i].z = data.vertices[i].z;
+      // TODO: how invalid points are represented?
+      memcpy (cloud->points[i].data, &data.verticesFloatingPoint[i], 3 * sizeof (float));
     }
     point_cloud_signal_->operator () (cloud);
   }
+
+  if (need_xyzrgba)
+  {
+    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGBA> (WIDTH, HEIGHT));
+    for (int i = 0; i < SIZE; i++)
+    {
+      // TODO: how invalid points are represented?
+      memcpy (cloud->points[i].data, &data.verticesFloatingPoint[i], 3 * sizeof (float));
+
+      const DepthSense::UV& uv = data.uvMap[i];
+      int row = static_cast<int> (uv.v * 480);
+      int col = static_cast<int> (uv.u * 640);
+      int pixel = row * 640 + col;
+      if (pixel >=0 && pixel < 640 * 480)
+        memcpy (&cloud->points[i].rgba, &color_data_[pixel * 3], 3);
+    }
+    point_cloud_rgba_signal_->operator () (cloud);
+  }
+}
+
+void
+pcl::DepthSenseGrabber::onColorDataReceived (DepthSense::ColorNode node, DepthSense::ColorNode::NewSampleReceivedData data)
+{
+  if (num_slots<sig_cb_depth_sense_point_cloud_rgba> () > 0)
+    memcpy (&color_data_[0], data.colorMap, color_data_.size ());
 }
 

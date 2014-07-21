@@ -62,7 +62,11 @@ namespace pcl
 
       typedef
         void (sig_cb_depth_sense_point_cloud)
-          (const boost::shared_ptr<const pcl::PointCloud<pcl::PointXYZ> >&);
+          (const pcl::PointCloud<pcl::PointXYZ>::ConstPtr&);
+
+      typedef
+        void (sig_cb_depth_sense_point_cloud_rgba)
+          (const pcl::PointCloud<pcl::PointXYZRGBA>::ConstPtr&);
 
       enum Mode
       {
@@ -101,23 +105,32 @@ namespace pcl
       configureDepthNode (DepthSense::DepthNode node);
 
       void
+      configureColorNode (DepthSense::ColorNode node);
+
+      void
       onDepthDataReceived (DepthSense::DepthNode node, DepthSense::DepthNode::NewSampleReceivedData data);
 
       void
-      onColorDataReceived (DepthSense::ColorNode node, DepthSense::ColorNode::NewSampleReceivedData data)
-      {
-      }
+      onColorDataReceived (DepthSense::ColorNode node, DepthSense::ColorNode::NewSampleReceivedData data);
 
       friend pcl::io::depth_sense::DepthSenseDeviceManager;
 
       // signals to indicate whether new clouds are available
       boost::signals2::signal<sig_cb_depth_sense_point_cloud>* point_cloud_signal_;
+      boost::signals2::signal<sig_cb_depth_sense_point_cloud_rgba>* point_cloud_rgba_signal_;
 
       std::string device_id_;
 
       bool is_running_;
 
       int confidence_threshold_;
+
+      std::vector<uint8_t> color_data_;
+
+      static const int FRAMERATE = 30;
+      static const int WIDTH = 320;
+      static const int HEIGHT = 240;
+      static const int SIZE = WIDTH * HEIGHT;
 
   };
 

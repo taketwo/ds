@@ -88,10 +88,9 @@ pcl::io::depth_sense::DepthSenseDeviceManager::reconfigureDevice (const std::str
   context_.requestControl (dev.depth_node, 0);
   dev.grabber->configureDepthNode (dev.depth_node);
   context_.releaseControl (dev.depth_node);
-  //{
-    //context_.requestControl (captured_devices_[sn].color_node, 0);
-    //grabber->configureDepthNode (captured_devices_[sn].color_node);
-  //}
+  context_.requestControl (dev.color_node, 0);
+  dev.grabber->configureColorNode (dev.color_node);
+  context_.releaseControl (dev.color_node);
 }
 
 void
@@ -99,7 +98,7 @@ pcl::io::depth_sense::DepthSenseDeviceManager::startDevice (const std::string& s
 {
   const Dev& dev = captured_devices_[sn];
   context_.registerNode (dev.depth_node);
-  //context_.registerNode (dev.color_node);
+  context_.registerNode (dev.color_node);
   context_.startNodes ();
   boost::mutex::scoped_lock lock (mutex_);
   if (active_devices_++ == 0)
@@ -115,7 +114,7 @@ pcl::io::depth_sense::DepthSenseDeviceManager::stopDevice (const std::string& sn
 {
   const Dev& dev = captured_devices_[sn];
   context_.unregisterNode (dev.depth_node);
-  //context_.unregisterNode (dev.color_node);
+  context_.unregisterNode (dev.color_node);
   boost::mutex::scoped_lock lock (mutex_);
   // use getRegisteredNodes ().size ();
   if (active_devices_ == 0)

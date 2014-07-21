@@ -13,11 +13,12 @@ class DepthSenseProcessor
 
     typedef pcl::PointCloud<PointT> PointCloudT;
 
-    DepthSenseProcessor (pcl::Grabber& grabber)
+    DepthSenseProcessor (pcl::DepthSenseGrabber& grabber)
     : interface_ (grabber)
     , viewer_ ("DepthSense Cloud Viewer")
     , counter_ (0)
     , timestamp_ (pcl::getTime ())
+    , threshold_ (10)
     {
     }
 
@@ -43,22 +44,26 @@ class DepthSenseProcessor
         std::cout << "Average framerate: " << double (counter_) / double (now - timestamp_) << " Hz" << std::endl;
         counter_ = 0;
         timestamp_ = now;
+        interface_.setConfidenceThreshold (threshold_);
+        threshold_ += 10;
       }
       if (!viewer_.wasStopped ())
         viewer_.showCloud (cloud);
     }
 
-    pcl::Grabber& interface_;
+    pcl::DepthSenseGrabber& interface_;
     pcl::visualization::CloudViewer viewer_;
     size_t counter_;
     double timestamp_;
+
+    int threshold_;
 
 };
 
 int main(int argc, const char** argv)
 {
   pcl::DepthSenseGrabber grabber;
-  DepthSenseProcessor<pcl::PointXYZ> processor (grabber);
+  DepthSenseProcessor<pcl::PointXYZRGBA> processor (grabber);
   processor.run ();
   return 0;
 }
