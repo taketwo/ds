@@ -146,6 +146,10 @@ pcl::io::depth_sense::DepthSenseDeviceManager::stopDevice (const std::string& sn
 void
 pcl::io::depth_sense::DepthSenseDeviceManager::releaseDevice (const std::string& sn)
 {
+  boost::mutex::scoped_lock lock (mutex_);
+  const CapturedDevice& dev = captured_devices_[sn];
+  dev.depth_node.newSampleReceivedEvent ().disconnect (dev.grabber, &DepthSenseGrabber::onDepthDataReceived);
+  dev.color_node.newSampleReceivedEvent ().disconnect (dev.grabber, &DepthSenseGrabber::onColorDataReceived);
   captured_devices_.erase (sn);
 }
 
