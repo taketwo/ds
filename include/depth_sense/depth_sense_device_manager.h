@@ -85,10 +85,13 @@ namespace pcl
           }
 
           std::string
-          captureDevice (size_t index, DepthSenseGrabber* grabber);
+          captureDevice (DepthSenseGrabber* grabber);
 
           std::string
-          captureDevice (const std::string& sn, DepthSenseGrabber* grabber);
+          captureDevice (DepthSenseGrabber* grabber, size_t index);
+
+          std::string
+          captureDevice (DepthSenseGrabber* grabber, const std::string& sn);
 
           void
           releaseDevice (const std::string& sn);
@@ -107,7 +110,13 @@ namespace pcl
           DepthSenseDeviceManager ();
 
           std::string
-          captureDevice (DepthSense::Device device, DepthSenseGrabber* grabber);
+          captureDevice (DepthSenseGrabber* grabber, DepthSense::Device device);
+
+          inline bool
+          isCaptured (const std::string& sn) const
+          {
+            return (captured_devices_.count (sn) != 0);
+          }
 
           DepthSense::Context context_;
 
@@ -116,16 +125,14 @@ namespace pcl
           // thread where the grabbing takes place
           boost::thread depth_sense_thread_;
 
-          size_t active_devices_;
-
-          struct Dev
+          struct CapturedDevice
           {
             DepthSenseGrabber* grabber;
             DepthSense::DepthNode depth_node;
             DepthSense::ColorNode color_node;
           };
 
-          std::map<std::string, Dev> captured_devices_;
+          std::map<std::string, CapturedDevice> captured_devices_;
 
       };
 

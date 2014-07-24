@@ -43,7 +43,6 @@
 boost::mutex pcl::io::depth_sense::DepthSenseDeviceManager::mutex_;
 
 pcl::io::depth_sense::DepthSenseDeviceManager::DepthSenseDeviceManager ()
-: active_devices_ (0)
 {
   try
   {
@@ -56,25 +55,42 @@ pcl::io::depth_sense::DepthSenseDeviceManager::DepthSenseDeviceManager ()
 }
 
 std::string
-pcl::io::depth_sense::DepthSenseDeviceManager::captureDevice (size_t index, DepthSenseGrabber* grabber)
+pcl::io::depth_sense::DepthSenseDeviceManager::captureDevice (DepthSenseGrabber* grabber)
 {
-  if (index >= context_.getDevices ().size ())
-    THROW_IO_EXCEPTION ("device with index %i is not connected", index);
-  return (captureDevice (context_.getDevices ().at (index), grabber));
+  boost::mutex::scoped_lock lock (mutex_);
+  std::vector<DepthSense::Device> devices = context_.getDevices ();
+  if (devices.size () == 0)
+    THROW_IO_EXCEPTION ("no connected devices");
+  for (size_t i = 0; i < devices.size (); ++i)
+    if (!isCaptured (devices[i].getSerialNumber ()))
+      return (captureDevice (grabber, devices[i]));
+  THROW_IO_EXCEPTION ("all connected devices are captured by other grabbers");
+  return ("");  // never reached, needed just to silence -Wreturn-type warning
 }
 
 std::string
-pcl::io::depth_sense::DepthSenseDeviceManager::captureDevice (const std::string& sn, DepthSenseGrabber* grabber)
+pcl::io::depth_sense::DepthSenseDeviceManager::captureDevice (DepthSenseGrabber* grabber, size_t index)
 {
+  boost::mutex::scoped_lock lock (mutex_);
+  if (index >= context_.getDevices ().size ())
+    THROW_IO_EXCEPTION ("device with index %i is not connected", index + 1);
+  if (isCaptured (context_.getDevices ().at (index).getSerialNumber ()))
+    THROW_IO_EXCEPTION ("device with index %i is captured by another grabber", index);
+  return (captureDevice (grabber, context_.getDevices ().at (index)));
+}
+
+std::string
+pcl::io::depth_sense::DepthSenseDeviceManager::captureDevice (DepthSenseGrabber* grabber, const std::string& sn)
+{
+  boost::mutex::scoped_lock lock (mutex_);
   std::vector<DepthSense::Device> devices = context_.getDevices ();
   for (size_t i = 0; i < devices.size (); ++i)
   {
     if (devices[i].getSerialNumber () == sn)
     {
-      if (captured_devices_.count (sn))
-        THROW_IO_EXCEPTION ("device with serial number %s is captured by another DepthSenseGrabber", sn.c_str ());
-      else
-        return (captureDevice (devices[i], grabber));
+      if (isCaptured (sn))
+        THROW_IO_EXCEPTION ("device with serial number %s is captured by another grabber", sn.c_str ());
+      return (captureDevice (grabber, devices[i]));
     }
   }
   THROW_IO_EXCEPTION ("device with serial number %s is not connected", sn.c_str ());
@@ -84,7 +100,8 @@ pcl::io::depth_sense::DepthSenseDeviceManager::captureDevice (const std::string&
 void
 pcl::io::depth_sense::DepthSenseDeviceManager::reconfigureDevice (const std::string& sn)
 {
-  const Dev& dev = captured_devices_[sn];
+  boost::mutex::scoped_lock lock (mutex_);
+  const CapturedDevice& dev = captured_devices_[sn];
   context_.requestControl (dev.depth_node, 0);
   dev.grabber->configureDepthNode (dev.depth_node);
   context_.releaseControl (dev.depth_node);
@@ -96,14 +113,15 @@ pcl::io::depth_sense::DepthSenseDeviceManager::reconfigureDevice (const std::str
 void
 pcl::io::depth_sense::DepthSenseDeviceManager::startDevice (const std::string& sn)
 {
-  const Dev& dev = captured_devices_[sn];
+  boost::mutex::scoped_lock lock (mutex_);
+  bool had_registered_nodes = (context_.getRegisteredNodes ().size () > 0);
+  const CapturedDevice& dev = captured_devices_[sn];
   context_.registerNode (dev.depth_node);
   context_.registerNode (dev.color_node);
   context_.startNodes ();
-  boost::mutex::scoped_lock lock (mutex_);
-  if (active_devices_++ == 0)
+  if (!had_registered_nodes)
   {
-    std::cout << "first active device: starting thread" << std::endl;
+    std::cout << "first active node: starting thread" << std::endl;
     depth_sense_thread_ = boost::thread (&DepthSense::Context::run, &context_);
   }
 
@@ -112,16 +130,13 @@ pcl::io::depth_sense::DepthSenseDeviceManager::startDevice (const std::string& s
 void
 pcl::io::depth_sense::DepthSenseDeviceManager::stopDevice (const std::string& sn)
 {
-  const Dev& dev = captured_devices_[sn];
+  boost::mutex::scoped_lock lock (mutex_);
+  const CapturedDevice& dev = captured_devices_[sn];
   context_.unregisterNode (dev.depth_node);
   context_.unregisterNode (dev.color_node);
-  boost::mutex::scoped_lock lock (mutex_);
-  // use getRegisteredNodes ().size ();
-  if (active_devices_ == 0)
-    return;
-  if (--active_devices_ == 0)
+  if (context_.getRegisteredNodes ().size () == 0)
   {
-    std::cout << "last active device: stopping thread" << std::endl;
+    std::cout << "last active node: stopping thread" << std::endl;
     context_.stopNodes ();
     context_.quit ();
     depth_sense_thread_.join ();
@@ -135,10 +150,11 @@ pcl::io::depth_sense::DepthSenseDeviceManager::releaseDevice (const std::string&
 }
 
 std::string
-pcl::io::depth_sense::DepthSenseDeviceManager::captureDevice (DepthSense::Device device, DepthSenseGrabber* grabber)
+pcl::io::depth_sense::DepthSenseDeviceManager::captureDevice (DepthSenseGrabber* grabber, DepthSense::Device device)
 {
-  // TODO: sync?
-  Dev dev;
+  // This is called from public captureDevice() functions and should already be
+  // under scoped lock
+  CapturedDevice dev;
   dev.grabber = grabber;
   std::vector<DepthSense::Node> nodes = device.getNodes ();
   for (size_t i = 0; i < nodes.size (); ++i)
