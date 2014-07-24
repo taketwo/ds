@@ -115,10 +115,10 @@ namespace pcl
     private:
 
       void
-      configureDepthNode (DepthSense::DepthNode node);
+      configureDepthNode (DepthSense::DepthNode node) const;
 
       void
-      configureColorNode (DepthSense::ColorNode node);
+      configureColorNode (DepthSense::ColorNode node) const;
 
       void
       onDepthDataReceived (DepthSense::DepthNode node, DepthSense::DepthNode::NewSampleReceivedData data);
@@ -137,6 +137,9 @@ namespace pcl
       bool is_running_;
 
       int confidence_threshold_;
+
+      bool need_xyz_;
+      bool need_xyzrgba_;
 
       std::vector<uint8_t> color_data_;
 

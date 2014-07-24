@@ -61,12 +61,10 @@ pcl::DepthSenseGrabber::DepthSenseGrabber (const std::string& device_id)
 
 pcl::DepthSenseGrabber::~DepthSenseGrabber () throw ()
 {
-  if (is_running_)
-    stop ();
+  stop ();
 
   DepthSenseDeviceManager::getInstance ()->releaseDevice (device_id_);
 
-  // TODO: don't forget to update this with new callbacks
   disconnect_all_slots<sig_cb_depth_sense_point_cloud> ();
   disconnect_all_slots<sig_cb_depth_sense_point_cloud_rgba> ();
 }
@@ -74,19 +72,25 @@ pcl::DepthSenseGrabber::~DepthSenseGrabber () throw ()
 void
 pcl::DepthSenseGrabber::start ()
 {
-  if (is_running_)
-    return;
+  need_xyz_ = num_slots<sig_cb_depth_sense_point_cloud> () > 0;
+  need_xyzrgba_ = num_slots<sig_cb_depth_sense_point_cloud_rgba> () > 0;
 
-  DepthSenseDeviceManager::getInstance ()->reconfigureDevice (device_id_);
-  DepthSenseDeviceManager::getInstance ()->startDevice (device_id_);
-  is_running_ = true;
+  if (!is_running_)
+  {
+    DepthSenseDeviceManager::getInstance ()->reconfigureDevice (device_id_);
+    DepthSenseDeviceManager::getInstance ()->startDevice (device_id_);
+    is_running_ = true;
+  }
 }
 
 void
 pcl::DepthSenseGrabber::stop ()
 {
-  DepthSenseDeviceManager::getInstance ()->stopDevice (device_id_);
-  is_running_ = false;
+  if (is_running_)
+  {
+    DepthSenseDeviceManager::getInstance ()->stopDevice (device_id_);
+    is_running_ = false;
+  }
 }
 
 bool
@@ -109,7 +113,7 @@ pcl::DepthSenseGrabber::setConfidenceThreshold (int threshold)
 }
 
 void
-pcl::DepthSenseGrabber::configureDepthNode (DepthSense::DepthNode node)
+pcl::DepthSenseGrabber::configureDepthNode (DepthSense::DepthNode node) const
 {
   DepthSense::DepthNode::Configuration config = node.getConfiguration ();
   config.frameFormat = DepthSense::FRAME_FORMAT_QVGA;
@@ -124,7 +128,7 @@ pcl::DepthSenseGrabber::configureDepthNode (DepthSense::DepthNode node)
 }
 
 void
-pcl::DepthSenseGrabber::configureColorNode (DepthSense::ColorNode node)
+pcl::DepthSenseGrabber::configureColorNode (DepthSense::ColorNode node) const
 {
   DepthSense::ColorNode::Configuration config = node.getConfiguration ();
   config.frameFormat = DepthSense::FRAME_FORMAT_VGA;
@@ -146,10 +150,7 @@ pcl::DepthSenseGrabber::configureColorNode (DepthSense::ColorNode node)
 void
 pcl::DepthSenseGrabber::onDepthDataReceived (DepthSense::DepthNode node, DepthSense::DepthNode::NewSampleReceivedData data)
 {
-  bool need_xyz = num_slots<sig_cb_depth_sense_point_cloud> () > 0;
-  bool need_xyzrgba = num_slots<sig_cb_depth_sense_point_cloud_rgba> () > 0;
-
-  if (need_xyz)
+  if (need_xyz_)
   {
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ> (WIDTH, HEIGHT));
     for (int i = 0; i < SIZE; i++)
@@ -160,7 +161,7 @@ pcl::DepthSenseGrabber::onDepthDataReceived (DepthSense::DepthNode node, DepthSe
     point_cloud_signal_->operator () (cloud);
   }
 
-  if (need_xyzrgba)
+  if (need_xyzrgba_)
   {
     pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGBA> (WIDTH, HEIGHT));
     for (int i = 0; i < SIZE; i++)
@@ -182,7 +183,7 @@ pcl::DepthSenseGrabber::onDepthDataReceived (DepthSense::DepthNode node, DepthSe
 void
 pcl::DepthSenseGrabber::onColorDataReceived (DepthSense::ColorNode node, DepthSense::ColorNode::NewSampleReceivedData data)
 {
-  if (num_slots<sig_cb_depth_sense_point_cloud_rgba> () > 0)
+  if (need_xyzrgba_)
     memcpy (&color_data_[0], data.colorMap, color_data_.size ());
 }
 
