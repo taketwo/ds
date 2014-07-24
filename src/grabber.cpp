@@ -22,11 +22,16 @@ class DepthSenseProcessor
     {
     }
 
+    ~DepthSenseProcessor ()
+    {
+      connection_.disconnect ();
+    }
+
     void
     run ()
     {
       boost::function<void (const typename PointCloudT::ConstPtr&)> f = boost::bind (&DepthSenseProcessor::cloudCallback, this, _1);
-      interface_.registerCallback (f);
+      connection_ = interface_.registerCallback (f);
       interface_.start ();
       while (!viewer_.wasStopped ())
         boost::this_thread::sleep (boost::posix_time::seconds (1));
@@ -53,6 +58,7 @@ class DepthSenseProcessor
 
     pcl::DepthSenseGrabber& interface_;
     pcl::visualization::CloudViewer viewer_;
+    boost::signals2::connection connection_;
     size_t counter_;
     double timestamp_;
 
