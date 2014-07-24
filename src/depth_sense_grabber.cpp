@@ -35,18 +35,26 @@
  *
  */
 
+#include <boost/lexical_cast.hpp>
+
 #include "depth_sense_grabber.h"
 #include "depth_sense/depth_sense_device_manager.h"
 
 using namespace pcl::io::depth_sense;
 
-pcl::DepthSenseGrabber::DepthSenseGrabber ()
+pcl::DepthSenseGrabber::DepthSenseGrabber (const std::string& device_id)
 : Grabber ()
 , is_running_ (false)
 , confidence_threshold_ (50)
 , color_data_ (640 * 480 * 3)
 {
-  device_id_ = DepthSenseDeviceManager::getInstance ()->captureDevice ("YZVF0780251000095M", this);
+  if (device_id == "")
+    device_id_ = DepthSenseDeviceManager::getInstance ()->captureDevice (this);
+  else if (device_id[0] == '#')
+    device_id_ = DepthSenseDeviceManager::getInstance ()->captureDevice (this, boost::lexical_cast<int> (device_id.substr (1)) - 1);
+  else
+    device_id_ = DepthSenseDeviceManager::getInstance ()->captureDevice (this, device_id);
+
   point_cloud_signal_ = createSignal<sig_cb_depth_sense_point_cloud> ();
   point_cloud_rgba_signal_ = createSignal<sig_cb_depth_sense_point_cloud_rgba> ();
 }

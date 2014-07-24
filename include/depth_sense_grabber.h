@@ -73,7 +73,20 @@ namespace pcl
         DepthSense_QVGA_30Hz = 0,
       };
 
-      DepthSenseGrabber ();
+      /** Create a grabber for a DepthSense device.
+        *
+        * The grabber "captures" the device, making it impossible for other
+        * grabbers to interact with it. The device is "released" when the
+        * grabber is destructed.
+        *
+        * This will throw pcl::IOException if there are no free devices that
+        * match the supplied \a device_id.
+        *
+        * \param[in] device_id device identifier, which might be a serial
+        * number, an index (with '#' prefix), or an empty string (to select the
+        * first available device)
+        */
+      DepthSenseGrabber (const std::string& device_id = "");
 
       virtual
       ~DepthSenseGrabber () throw ();
