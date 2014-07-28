@@ -47,11 +47,18 @@ pcl::io::depth_sense::DepthSenseDeviceManager::DepthSenseDeviceManager ()
   try
   {
     context_ = DepthSense::Context::create ("localhost");
+    depth_sense_thread_ = boost::thread (&DepthSense::Context::run, &context_);
   }
   catch (...)  // TODO: catch only specific exceptions?
   {
     THROW_IO_EXCEPTION ("failed to initialize DepthSense context");
   }
+}
+
+pcl::io::depth_sense::DepthSenseDeviceManager::~DepthSenseDeviceManager ()
+{
+  context_.quit ();
+  depth_sense_thread_.join ();
 }
 
 std::string
@@ -113,33 +120,33 @@ pcl::io::depth_sense::DepthSenseDeviceManager::reconfigureDevice (const std::str
 void
 pcl::io::depth_sense::DepthSenseDeviceManager::startDevice (const std::string& sn)
 {
-  boost::mutex::scoped_lock lock (mutex_);
-  bool had_registered_nodes = (context_.getRegisteredNodes ().size () > 0);
   const CapturedDevice& dev = captured_devices_[sn];
-  context_.registerNode (dev.depth_node);
-  context_.registerNode (dev.color_node);
-  context_.startNodes ();
-  if (!had_registered_nodes)
+  try
   {
-    std::cout << "first active node: starting thread" << std::endl;
-    depth_sense_thread_ = boost::thread (&DepthSense::Context::run, &context_);
+    context_.registerNode (dev.depth_node);
+    context_.registerNode (dev.color_node);
+    context_.startNodes ();
   }
-
+  catch (DepthSense::ArgumentException& e)
+  {
+    THROW_IO_EXCEPTION ("unable to start device %s, possibly disconnected", sn.c_str ());
+  }
 }
 
 void
 pcl::io::depth_sense::DepthSenseDeviceManager::stopDevice (const std::string& sn)
 {
-  boost::mutex::scoped_lock lock (mutex_);
   const CapturedDevice& dev = captured_devices_[sn];
-  context_.unregisterNode (dev.depth_node);
-  context_.unregisterNode (dev.color_node);
-  if (context_.getRegisteredNodes ().size () == 0)
+  try
   {
-    std::cout << "last active node: stopping thread" << std::endl;
-    context_.stopNodes ();
-    context_.quit ();
-    depth_sense_thread_.join ();
+    context_.unregisterNode (dev.depth_node);
+    context_.unregisterNode (dev.color_node);
+    if (context_.getRegisteredNodes ().size () == 0)
+      context_.stopNodes ();
+  }
+  catch (DepthSense::ArgumentException& e)
+  {
+    THROW_IO_EXCEPTION ("unable to stop device %s, possibly disconnected", sn.c_str ());
   }
 }
 

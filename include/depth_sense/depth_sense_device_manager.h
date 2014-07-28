@@ -105,6 +105,8 @@ namespace pcl
           void
           stopDevice (const std::string& sn);
 
+          ~DepthSenseDeviceManager ();
+
         private:
 
           DepthSenseDeviceManager ();
