@@ -196,6 +196,9 @@ namespace pcl
       static const int WIDTH = 320;
       static const int HEIGHT = 240;
       static const int SIZE = WIDTH * HEIGHT;
+      static const int COLOR_WIDTH = 640;
+      static const int COLOR_HEIGHT = 480;
+      static const int COLOR_SIZE = COLOR_WIDTH * COLOR_HEIGHT;
 
   };
 

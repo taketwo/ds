@@ -46,7 +46,7 @@ pcl::DepthSenseGrabber::DepthSenseGrabber (const std::string& device_id)
 : Grabber ()
 , is_running_ (false)
 , confidence_threshold_ (50)
-, color_data_ (640 * 480 * 3)
+, color_data_ (COLOR_SIZE * 3)
 {
   if (device_id == "")
     device_id_ = DepthSenseDeviceManager::getInstance ()->captureDevice (this);
@@ -176,10 +176,10 @@ pcl::DepthSenseGrabber::onDepthDataReceived (DepthSense::DepthNode node, DepthSe
       memcpy (cloud->points[i].data, &data.verticesFloatingPoint[i], 3 * sizeof (float));
 
       const DepthSense::UV& uv = data.uvMap[i];
-      int row = static_cast<int> (uv.v * 480);
-      int col = static_cast<int> (uv.u * 640);
-      int pixel = row * 640 + col;
-      if (pixel >=0 && pixel < 640 * 480)
+      int row = static_cast<int> (uv.v * COLOR_HEIGHT);
+      int col = static_cast<int> (uv.u * COLOR_WIDTH);
+      int pixel = row * COLOR_WIDTH + col;
+      if (pixel >=0 && pixel < COLOR_WIDTH * COLOR_HEIGHT)
         memcpy (&cloud->points[i].rgba, &color_data_[pixel * 3], 3);
     }
     point_cloud_rgba_signal_->operator () (cloud);
