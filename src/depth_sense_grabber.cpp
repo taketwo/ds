@@ -79,6 +79,7 @@ pcl::DepthSenseGrabber::start ()
   {
     DepthSenseDeviceManager::getInstance ()->reconfigureDevice (device_id_);
     DepthSenseDeviceManager::getInstance ()->startDevice (device_id_);
+    frequency_.reset ();
     is_running_ = true;
   }
 }
@@ -102,7 +103,8 @@ pcl::DepthSenseGrabber::isRunning () const
 float
 pcl::DepthSenseGrabber::getFramesPerSecond () const
 {
-  return (0.0f);
+  boost::mutex::scoped_lock lock (fps_mutex_);
+  return (frequency_.getFrequency ());
 }
 
 void
@@ -150,6 +152,10 @@ pcl::DepthSenseGrabber::configureColorNode (DepthSense::ColorNode node) const
 void
 pcl::DepthSenseGrabber::onDepthDataReceived (DepthSense::DepthNode node, DepthSense::DepthNode::NewSampleReceivedData data)
 {
+  fps_mutex_.lock ();
+  frequency_.event ();
+  fps_mutex_.unlock ();
+
   if (need_xyz_)
   {
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ> (WIDTH, HEIGHT));

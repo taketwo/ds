@@ -38,9 +38,14 @@
 #ifndef PCL_IO_DEPTH_SENSE_GRABBER_H
 #define PCL_IO_DEPTH_SENSE_GRABBER_H
 
+#include <boost/thread/mutex.hpp>
+
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl/io/grabber.h>
+
+#include <queue>
+#include <pcl/common/time.h>
 
 #include <DepthSense.hxx>
 
@@ -54,6 +59,47 @@ namespace pcl
       class DepthSenseDeviceManager;
     }
   }
+
+  class EventFrequency
+  {
+
+    public:
+
+      EventFrequency (size_t window_size = 30)
+      : window_size_ (window_size)
+      {
+        stop_watch_.reset ();
+      }
+
+      void event ()
+      {
+        event_time_queue_.push (stop_watch_.getTimeSeconds ());
+        if (event_time_queue_.size () > window_size_)
+          event_time_queue_.pop ();
+      }
+
+      double
+      getFrequency () const
+      {
+        if (event_time_queue_.size () < 2)
+          return (0.0);
+        return ((event_time_queue_.size () - 1) /
+                (event_time_queue_.back () - event_time_queue_.front ()));
+      }
+
+      void reset ()
+      {
+        stop_watch_.reset ();
+        event_time_queue_ = std::queue<double> ();
+      }
+
+    private:
+
+      pcl::StopWatch stop_watch_;
+      std::queue<double> event_time_queue_;
+      const size_t window_size_;
+
+  };
 
   class PCL_EXPORTS DepthSenseGrabber : public Grabber
   {
@@ -142,6 +188,9 @@ namespace pcl
       bool need_xyzrgba_;
 
       std::vector<uint8_t> color_data_;
+
+      EventFrequency frequency_;
+      mutable boost::mutex fps_mutex_;
 
       static const int FRAMERATE = 30;
       static const int WIDTH = 320;
