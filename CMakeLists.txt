@@ -37,3 +37,14 @@ target_link_libraries(grabber
   ${PCL_LIBRARIES}
   ${DEPTHSENSESDK_LIBRARIES}
 )
+
+add_executable(multi_grabber
+  src/depth_sense/depth_sense_device_manager.cpp
+  src/depth_sense_grabber.cpp
+  src/multi_grabber.cpp
+)
+target_link_libraries(multi_grabber
+  ${PCL_LIBRARIES}
+  ${DEPTHSENSESDK_LIBRARIES}
+)
+
