@@ -182,6 +182,12 @@ namespace pcl
       void
       setConfidenceThreshold (int threshold);
 
+      inline std::string
+      getDeviceSerialNumber () const
+      {
+        return (device_id_);
+      }
+
     private:
 
       void
