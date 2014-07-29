@@ -28,12 +28,12 @@ add_definitions(
   ${PCL_DEFINITIONS}
 )
 
-add_executable(grabber
+add_executable(depth_sense_viewer
   src/depth_sense/depth_sense_device_manager.cpp
   src/depth_sense_grabber.cpp
-  src/grabber.cpp
+  src/depth_sense_viewer.cpp
 )
-target_link_libraries(grabber
+target_link_libraries(depth_sense_viewer
   ${PCL_LIBRARIES}
   ${DEPTHSENSESDK_LIBRARIES}
 )
