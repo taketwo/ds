@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8 FATAL_ERROR)
 
 project(ds)
 
-find_package(PCL 1.7 REQUIRED)
+find_package(PCL REQUIRED)
 
 set(DEPTHSENSESDK_DIR /opt/softkinetic/DepthSenseSDK)
 set(DEPTHSENSESDK_INCLUDE_DIR ${DEPTHSENSESDK_DIR}/include)
