@@ -1,6 +1,0 @@
-[submodule "third-party/DepthSenseGrabber"]
-	path = third-party/DepthSenseGrabber
-	url = https://github.com/ph4m/DepthSenseGrabber
-[submodule "third-party/dsviewer"]
-	path = third-party/dsviewer
-	url = https://github.com/jamesjolly/dsviewer.git
