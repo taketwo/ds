@@ -211,7 +211,7 @@ namespace pcl
       onColorDataReceived (DepthSense::ColorNode node, DepthSense::ColorNode::NewSampleReceivedData data);
 
       // The manager should be able to invoke callbacks and configuration
-      friend pcl::io::depth_sense::DepthSenseDeviceManager;
+      friend class pcl::io::depth_sense::DepthSenseDeviceManager;
 
       // Signals to indicate whether new clouds are available
       boost::signals2::signal<sig_cb_depth_sense_point_cloud>* point_cloud_signal_;
