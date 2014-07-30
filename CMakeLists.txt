@@ -10,8 +10,6 @@ set(DEPTHSENSESDK_LIBRARY_DIR ${DEPTHSENSESDK_DIR}/lib)
 set(DEPTHSENSESDK_LIBRARIES ${DEPTHSENSESDK_LIBRARY_DIR}/libDepthSense.so ${DEPTHSENSESDK_LIBRARY_DIR}/libDepthSensePlugins.so ${DEPTHSENSESDK_LIBRARY_DIR}/libturbojpeg.so ${DEPTHSENSESDK_LIBRARY_DIR}/libusb-1.0.so)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-add_definitions(-fcolor-diagnostics)
-add_definitions(-std=c++11)
 
 include_directories(
   include
