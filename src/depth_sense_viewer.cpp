@@ -44,7 +44,8 @@
 #include <pcl/console/parse.h>
 #include <pcl/common/time.h>
 #include <pcl/visualization/cloud_viewer.h>
-#include <pcl/io/io_exception.h>
+//#include <pcl/io/io_exception.h>
+#include "io_exception.h"
 
 #include "depth_sense_grabber.h"
 

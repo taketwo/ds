@@ -4,7 +4,8 @@
 
 #include <pcl/common/time.h>
 #include <pcl/visualization/pcl_visualizer.h>
-#include <pcl/io/io_exception.h>
+//#include <pcl/io/io_exception.h>
+#include "io_exception.h"
 
 #include "depth_sense_grabber.h"
 

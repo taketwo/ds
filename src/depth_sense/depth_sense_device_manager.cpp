@@ -35,7 +35,8 @@
  *
  */
 
-#include <pcl/io/io_exception.h>
+//#include <pcl/io/io_exception.h>
+#include "io_exception.h"
 
 #include "depth_sense/depth_sense_device_manager.h"
 #include "depth_sense_grabber.h"
