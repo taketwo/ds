@@ -229,6 +229,10 @@ namespace pcl
 
       DepthSense::IntrinsicParameters depth_intrinsics_;
 
+      /// A matrix to map depth values at each depth image pixel to 3D point
+      /// coordinates (includes rectification and projection).
+      Eigen::MatrixXf z_to_point_map_;
+
       /// Indicates whether there are subscribers for PointXYZ signal. This is
       /// computed and stored on start()
       bool need_xyz_;

@@ -118,6 +118,46 @@ void
 pcl::DepthSenseGrabber::setDepthIntrinsics (const DepthSense::IntrinsicParameters& intrinsics)
 {
   depth_intrinsics_ = intrinsics;
+
+  const float& cx = intrinsics.cx;
+  const float& cy = intrinsics.cy;
+  const float& fx = intrinsics.fx;
+  const float& fy = intrinsics.fy;
+  const float& k1 = intrinsics.k1;
+  const float& k2 = intrinsics.k2;
+  const float& k3 = intrinsics.k3;
+  const float& p1 = intrinsics.p1;
+  const float& p2 = intrinsics.p2;
+
+  z_to_point_map_.resize (SIZE, 3);
+
+  // Populate a matrix that will be used to map depth values to points coordinates.
+  // This code is based `Rectification` class from fovis (https://code.google.com/p/fovis/),
+  // which is in turn based on `cvUndistortPoints` from OpenCV.
+  for (int y = 0; y < HEIGHT; ++y)
+  {
+    for (int x = 0; x < WIDTH; ++x)
+    {
+      // Normalize according to principal point and focal length
+      double x1 = (x - cx) / fx;
+      double y1 = (y - cy) / fy;
+      double x0 = x1;
+      double y0 = y1;
+      // Iteratively undistort point
+      for (int j = 0; j < 5; ++j)
+      {
+        double r2 = x1 * x1 + y1 * y1;
+        double icdist = 1.0 / (1.0 + ((k3 * r2 + k2) * r2 + k1) * r2);
+        double delta_x = 2.0 * p1 * x1 * y1 + p2 * (r2 + 2 * x1 * x1);
+        double delta_y = p1 * (r2 + 2.0 * y1 * y1) + 2.0 * p2 * x1 * y1;
+        x1 = (x0 - delta_x) * icdist;
+        y1 = (y0 - delta_y) * icdist;
+      }
+      z_to_point_map_ (y * WIDTH + x, 0) = x1;
+      z_to_point_map_ (y * WIDTH + x, 1) = y1;
+      z_to_point_map_ (y * WIDTH + x, 2) = 1.0;
+    }
+  }
 }
 
 void
@@ -128,7 +168,7 @@ pcl::DepthSenseGrabber::configureDepthNode (DepthSense::DepthNode node) const
   config.framerate = FRAMERATE;
   config.mode = DepthSense::DepthNode::CAMERA_MODE_CLOSE_MODE;
   config.saturation = false;
-  node.setEnableVerticesFloatingPoint (true);
+  node.setEnableDepthMapFloatingPoint (true);
   node.setEnableUvMap (true);
   // TODO: deprecated
   node.setConfidenceThreshold (confidence_threshold_);
@@ -162,33 +202,50 @@ pcl::DepthSenseGrabber::onDepthDataReceived (DepthSense::DepthNode node, DepthSe
   frequency_.event ();
   fps_mutex_.unlock ();
 
+  static const float nan = std::numeric_limits<float>::quiet_NaN ();
+
+  pcl::PointCloud<pcl::PointXYZ>::Ptr xyz_cloud;
+  pcl::PointCloud<pcl::PointXYZRGBA>::Ptr xyzrgba_cloud;
+
   if (need_xyz_)
   {
-    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ> (WIDTH, HEIGHT));
+    xyz_cloud.reset (new pcl::PointCloud<pcl::PointXYZ> (WIDTH, HEIGHT));
+    xyz_cloud->is_dense = false;
+
     for (int i = 0; i < SIZE; i++)
     {
-      // TODO: how invalid points are represented?
-      memcpy (cloud->points[i].data, &data.verticesFloatingPoint[i], 3 * sizeof (float));
+      const float& z = data.depthMapFloatingPoint[i];
+      if (z == -1.0)
+        xyz_cloud->points[i].x = xyz_cloud->points[i].y = xyz_cloud->points[i].z = nan;
+      else
+        xyz_cloud->points[i].getVector3fMap () = z_to_point_map_.row (i) * z;
     }
-    point_cloud_signal_->operator () (cloud);
+
+    point_cloud_signal_->operator () (xyz_cloud);
   }
 
   if (need_xyzrgba_)
   {
-    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGBA> (WIDTH, HEIGHT));
+    xyzrgba_cloud.reset (new pcl::PointCloud<pcl::PointXYZRGBA> (WIDTH, HEIGHT));
+    xyzrgba_cloud->is_dense = false;
+
     for (int i = 0; i < SIZE; i++)
     {
-      // TODO: how invalid points are represented?
-      memcpy (cloud->points[i].data, &data.verticesFloatingPoint[i], 3 * sizeof (float));
+      const float& z = data.depthMapFloatingPoint[i];
+      if (z == -1.0)
+        xyzrgba_cloud->points[i].x = xyzrgba_cloud->points[i].y = xyzrgba_cloud->points[i].z = nan;
+      else
+        xyzrgba_cloud->points[i].getVector3fMap () = z_to_point_map_.row (i) * z;
 
       const DepthSense::UV& uv = data.uvMap[i];
       int row = static_cast<int> (uv.v * COLOR_HEIGHT);
       int col = static_cast<int> (uv.u * COLOR_WIDTH);
       int pixel = row * COLOR_WIDTH + col;
       if (pixel >=0 && pixel < COLOR_WIDTH * COLOR_HEIGHT)
-        memcpy (&cloud->points[i].rgba, &color_data_[pixel * 3], 3);
+        memcpy (&xyzrgba_cloud->points[i].rgba, &color_data_[pixel * 3], 3);
     }
-    point_cloud_rgba_signal_->operator () (cloud);
+
+    point_cloud_rgba_signal_->operator () (xyzrgba_cloud);
   }
 }
 
