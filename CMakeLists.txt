@@ -27,24 +27,26 @@ add_definitions(
   ${PCL_DEFINITIONS}
 )
 
-add_executable(depth_sense_viewer
+add_library(depth_sense
   src/depth_sense/depth_sense_device_manager.cpp
   src/depth_sense_grabber.cpp
-  src/depth_sense_viewer.cpp
   src/io_exception.cpp
 )
+
+add_executable(depth_sense_viewer
+  src/depth_sense_viewer.cpp
+)
 target_link_libraries(depth_sense_viewer
+  depth_sense
   ${PCL_LIBRARIES}
   ${DEPTHSENSESDK_LIBRARIES}
 )
 
 add_executable(multi_grabber
-  src/depth_sense/depth_sense_device_manager.cpp
-  src/depth_sense_grabber.cpp
   src/multi_grabber.cpp
-  src/io_exception.cpp
 )
 target_link_libraries(multi_grabber
+  depth_sense
   ${PCL_LIBRARIES}
   ${DEPTHSENSESDK_LIBRARIES}
 )
