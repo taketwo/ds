@@ -191,6 +191,9 @@ namespace pcl
     private:
 
       void
+      setDepthIntrinsics (const DepthSense::IntrinsicParameters& intrinsics);
+
+      void
       configureDepthNode (DepthSense::DepthNode node) const;
 
       void
@@ -223,6 +226,8 @@ namespace pcl
       bool is_running_;
 
       int confidence_threshold_;
+
+      DepthSense::IntrinsicParameters depth_intrinsics_;
 
       /// Indicates whether there are subscribers for PointXYZ signal. This is
       /// computed and stored on start()

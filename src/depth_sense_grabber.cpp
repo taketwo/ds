@@ -115,6 +115,12 @@ pcl::DepthSenseGrabber::setConfidenceThreshold (int threshold)
 }
 
 void
+pcl::DepthSenseGrabber::setDepthIntrinsics (const DepthSense::IntrinsicParameters& intrinsics)
+{
+  depth_intrinsics_ = intrinsics;
+}
+
+void
 pcl::DepthSenseGrabber::configureDepthNode (DepthSense::DepthNode node) const
 {
   DepthSense::DepthNode::Configuration config = node.getConfiguration ();

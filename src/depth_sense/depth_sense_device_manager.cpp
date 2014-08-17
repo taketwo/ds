@@ -175,6 +175,7 @@ pcl::io::depth_sense::DepthSenseDeviceManager::captureDevice (DepthSenseGrabber*
     {
       dev.depth_node = nodes[i].as<DepthSense::DepthNode> ();
       dev.depth_node.newSampleReceivedEvent ().connect (grabber, &DepthSenseGrabber::onDepthDataReceived);
+      grabber->setDepthIntrinsics (device.getStereoCameraParameters ().depthIntrinsics);
     }
     if (nodes[i].is<DepthSense::ColorNode> ())
     {
