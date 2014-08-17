@@ -23,6 +23,7 @@ link_directories(
 )
 
 add_definitions(
+  -msse2
   ${PCL_DEFINITIONS}
 )
 
