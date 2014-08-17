@@ -39,6 +39,7 @@
 
 #include "depth_sense_grabber.h"
 #include "depth_sense/depth_sense_device_manager.h"
+#include "depth_sense/buffers.h"
 
 using namespace pcl::io::depth_sense;
 
@@ -47,6 +48,7 @@ pcl::DepthSenseGrabber::DepthSenseGrabber (const std::string& device_id)
 , is_running_ (false)
 , confidence_threshold_ (50)
 , color_data_ (COLOR_SIZE * 3)
+, depth_buffer_ (new SingleBuffer)
 {
   if (device_id == "")
     device_id_ = DepthSenseDeviceManager::getInstance ()->captureDevice (this);
@@ -204,6 +206,7 @@ pcl::DepthSenseGrabber::onDepthDataReceived (DepthSense::DepthNode node, DepthSe
 
   static const float nan = std::numeric_limits<float>::quiet_NaN ();
 
+  depth_buffer_->push (data.depthMapFloatingPoint);
   pcl::PointCloud<pcl::PointXYZ>::Ptr xyz_cloud;
   pcl::PointCloud<pcl::PointXYZRGBA>::Ptr xyzrgba_cloud;
 
@@ -214,7 +217,7 @@ pcl::DepthSenseGrabber::onDepthDataReceived (DepthSense::DepthNode node, DepthSe
 
     for (int i = 0; i < SIZE; i++)
     {
-      const float& z = data.depthMapFloatingPoint[i];
+      const float& z = (*depth_buffer_)[i];
       if (z == -1.0)
         xyz_cloud->points[i].x = xyz_cloud->points[i].y = xyz_cloud->points[i].z = nan;
       else

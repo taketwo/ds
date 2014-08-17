@@ -57,6 +57,7 @@ namespace pcl
     namespace depth_sense
     {
       class DepthSenseDeviceManager;
+      class Buffer;
     }
   }
 
@@ -254,6 +255,8 @@ namespace pcl
       static const int COLOR_WIDTH = 640;
       static const int COLOR_HEIGHT = 480;
       static const int COLOR_SIZE = COLOR_WIDTH * COLOR_HEIGHT;
+
+      boost::shared_ptr<pcl::io::depth_sense::Buffer> depth_buffer_;
 
   };
 
