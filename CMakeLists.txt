@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 2.8 FATAL_ERROR)
 
 project(ds)
 
+option(BUILD_TESTS "Build tests." OFF)
+
 find_package(PCL REQUIRED)
 
 set(DEPTHSENSESDK_DIR /opt/softkinetic/DepthSenseSDK)
@@ -29,6 +31,7 @@ add_definitions(
 
 add_library(depth_sense
   src/depth_sense/depth_sense_device_manager.cpp
+  src/depth_sense/buffers.cpp
   src/depth_sense_grabber.cpp
   src/io_exception.cpp
 )
@@ -50,4 +53,9 @@ target_link_libraries(multi_grabber
   ${PCL_LIBRARIES}
   ${DEPTHSENSESDK_LIBRARIES}
 )
+
+if (BUILD_TESTS)
+  enable_testing()
+  add_subdirectory(test)
+endif()
 
