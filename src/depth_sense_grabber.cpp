@@ -212,8 +212,7 @@ pcl::DepthSenseGrabber::configureDepthNode (DepthSense::DepthNode node) const
   config.saturation = false;
   node.setEnableDepthMapFloatingPoint (true);
   node.setEnableUvMap (true);
-  // TODO: deprecated
-  node.setConfidenceThreshold (confidence_threshold_);
+  node.setEnableConfidenceMap (true);
   node.setConfiguration (config);
 }
 
@@ -248,6 +247,9 @@ pcl::DepthSenseGrabber::onDepthDataReceived (DepthSense::DepthNode node, DepthSe
 
   float* depth_data = new float[SIZE];
   memcpy (depth_data, &data.depthMapFloatingPoint[0], SIZE * sizeof (float));
+  for (int i = 0; i < SIZE; i++)
+    if (data.confidenceMap[i] < confidence_threshold_)
+      depth_data[i] = nan;
   depth_buffer_->push (depth_data);
   pcl::PointCloud<pcl::PointXYZ>::Ptr xyz_cloud;
   pcl::PointCloud<pcl::PointXYZRGBA>::Ptr xyzrgba_cloud;
@@ -260,7 +262,7 @@ pcl::DepthSenseGrabber::onDepthDataReceived (DepthSense::DepthNode node, DepthSe
     for (int i = 0; i < SIZE; i++)
     {
       const float& z = (*depth_buffer_)[i];
-      if (z == -1.0)
+      if (pcl_isnan (z))
         xyz_cloud->points[i].x = xyz_cloud->points[i].y = xyz_cloud->points[i].z = nan;
       else
         xyz_cloud->points[i].getVector3fMap () = z_to_point_map_.row (i) * z;
@@ -277,7 +279,7 @@ pcl::DepthSenseGrabber::onDepthDataReceived (DepthSense::DepthNode node, DepthSe
     for (int i = 0; i < SIZE; i++)
     {
       const float& z = (*depth_buffer_)[i];
-      if (z == -1.0)
+      if (pcl_isnan (z))
         xyzrgba_cloud->points[i].x = xyzrgba_cloud->points[i].y = xyzrgba_cloud->points[i].z = nan;
       else
         xyzrgba_cloud->points[i].getVector3fMap () = z_to_point_map_.row (i) * z;
