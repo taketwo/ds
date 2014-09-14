@@ -48,9 +48,29 @@ pcl::io::depth_sense::Buffer::Buffer (size_t size)
 {
 }
 
+pcl::io::depth_sense::Buffer::~Buffer ()
+{
+}
+
+const float*
+pcl::io::depth_sense::Buffer::allocateAndFillWithNaNs (size_t size)
+{
+  const float nan = std::numeric_limits<float>::quiet_NaN ();
+  float* nans = new float[size];
+  for (size_t i = 0; i < size; ++i)
+    nans[i] = nan;
+  return (nans);
+}
+
 pcl::io::depth_sense::SingleBuffer::SingleBuffer (size_t size)
 : Buffer (size)
+, data_ (allocateAndFillWithNaNs (size))
 {
+}
+
+pcl::io::depth_sense::SingleBuffer::~SingleBuffer ()
+{
+  delete[] data_;
 }
 
 float
@@ -64,6 +84,7 @@ void
 pcl::io::depth_sense::SingleBuffer::push (const float* data)
 {
   assert ((sizeof (data) / sizeof (float)) == size_);
+  delete[] data_;
   data_ = data;
 }
 
@@ -78,9 +99,8 @@ pcl::io::depth_sense::MedianBuffer::MedianBuffer (size_t size,
   assert (window_size_ > 0 &&
           window_size_ <= std::numeric_limits<unsigned char>::max ());
 
-  data_.resize (window_size_);
   for (size_t i = 0; i < window_size_; ++i)
-    data_[i].resize (size_, invalid_value_);
+    data_.push_back (allocateAndFillWithNaNs (size_));
 
   data_argsort_indices_.resize (size_);
   for (size_t i = 0; i < size_; ++i)
@@ -91,6 +111,12 @@ pcl::io::depth_sense::MedianBuffer::MedianBuffer (size_t size,
   }
 
   data_invalid_count_.resize (size_, window_size_);
+}
+
+pcl::io::depth_sense::MedianBuffer::~MedianBuffer ()
+{
+  for (size_t i = 0; i < window_size_; ++i)
+    delete[] data_[i];
 }
 
 float
@@ -159,7 +185,8 @@ pcl::io::depth_sense::MedianBuffer::push (const float* data)
   }
 
   // Finally overwrite the data
-  memcpy (&data_[data_current_idx_][0], data, sizeof (float) * size_);
+  delete[] data_[data_current_idx_];
+  data_[data_current_idx_] = data;
 }
 
 int pcl::io::depth_sense::MedianBuffer::compare (float a, float b)
@@ -182,18 +209,22 @@ pcl::io::depth_sense::AverageBuffer::AverageBuffer (size_t size,
 : Buffer (size)
 , window_size_ (window_size)
 , data_current_idx_ (window_size_ - 1)
-, invalid_value_ (std::numeric_limits<float>::quiet_NaN ())
 {
   assert (size_ > 0);
   assert (window_size_ > 0 &&
           window_size_ <= std::numeric_limits<unsigned char>::max ());
 
-  data_.resize (window_size_);
   for (size_t i = 0; i < window_size_; ++i)
-    data_[i].resize (size_, invalid_value_);
+    data_.push_back (allocateAndFillWithNaNs (size_));
 
   data_sum_.resize (size_, 0);
   data_invalid_count_.resize (size_, window_size_);
+}
+
+pcl::io::depth_sense::AverageBuffer::~AverageBuffer ()
+{
+  for (size_t i = 0; i < window_size_; ++i)
+    delete[] data_[i];
 }
 
 float
@@ -236,6 +267,7 @@ pcl::io::depth_sense::AverageBuffer::push (const float* data)
   }
 
   // Finally overwrite the data
-  memcpy (&data_[data_current_idx_][0], data, sizeof (float) * size_);
+  delete[] data_[data_current_idx_];
+  data_[data_current_idx_] = data;
 }
 

@@ -231,7 +231,9 @@ pcl::DepthSenseGrabber::onDepthDataReceived (DepthSense::DepthNode node, DepthSe
 
   static const float nan = std::numeric_limits<float>::quiet_NaN ();
 
-  depth_buffer_->push (data.depthMapFloatingPoint);
+  float* depth_data = new float[SIZE];
+  memcpy (depth_data, &data.depthMapFloatingPoint[0], SIZE * sizeof (float));
+  depth_buffer_->push (depth_data);
   pcl::PointCloud<pcl::PointXYZ>::Ptr xyz_cloud;
   pcl::PointCloud<pcl::PointXYZRGBA>::Ptr xyzrgba_cloud;
 

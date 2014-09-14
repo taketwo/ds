@@ -50,7 +50,9 @@ checkBuffer (Buffer& buffer, const float* data, const float* expected, size_t si
   const float* eptr = expected;
   for (size_t i = 0; i < size; ++i)
   {
-    buffer.push (dptr);
+    float* d = new float[size];
+    memcpy (d, dptr, size * sizeof (float));
+    buffer.push (d);
     for (size_t j = 0; j < buffer.size (); ++j)
       if (isnan (eptr[j]))
         EXPECT_TRUE (isnan (buffer[j]));
@@ -65,8 +67,6 @@ TEST (BuffersTest, SingleBuffer)
 {
   SingleBuffer sb (1);
   const float data[] = {5, 4, 3, 2, 1};
-  sb.push (data);
-  for (size_t i = 0; i < sizeof (data) / sizeof (float); ++i)
   checkBuffer (sb, data, data, sizeof (data) / sizeof (float));
 }
 

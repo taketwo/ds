@@ -58,6 +58,9 @@ namespace pcl
 
         public:
 
+          virtual
+          ~Buffer ();
+
           virtual float
           operator[] (size_t idx) const = 0;
 
@@ -74,6 +77,9 @@ namespace pcl
 
           Buffer (size_t size);
 
+          static const float*
+          allocateAndFillWithNaNs (size_t size);
+
           const size_t size_;
           const float invalid_value_;
 
@@ -85,6 +91,9 @@ namespace pcl
         public:
 
           SingleBuffer (size_t size);
+
+          virtual
+          ~SingleBuffer ();
 
           virtual float
           operator[] (size_t idx) const;
@@ -104,6 +113,9 @@ namespace pcl
         public:
 
           MedianBuffer (size_t size, size_t window_size);
+
+          virtual
+          ~MedianBuffer ();
 
           virtual float
           operator[] (size_t idx) const;
@@ -126,7 +138,7 @@ namespace pcl
 
           /// Data pushed into the buffer (last window_size_ chunks), logically
           /// organized as a circular buffer
-          std::vector<std::vector<float> > data_;
+          std::vector<const float*> data_;
 
           /// Index of the last pushed data chunk in the data_ circular buffer
           size_t data_current_idx_;
@@ -147,6 +159,9 @@ namespace pcl
 
           AverageBuffer (size_t size, size_t window_size);
 
+          virtual
+          ~AverageBuffer ();
+
           virtual float
           operator[] (size_t idx) const;
 
@@ -155,20 +170,11 @@ namespace pcl
 
         private:
 
-          /** Compare two floating point numbers.
-            *
-            * NaN is assumed to be larger than any other number. If both values
-            * are NaNs, they are assumed to be equal.
-            *
-            * \return -1 if \c a < \c b, 0 if \c a == \c b, 1 if \c a > \c b */
-          static int compare (float a, float b);
-
           const size_t window_size_;
-          const float invalid_value_;
 
           /// Data pushed into the buffer (last window_size_ chunks), logically
           /// organized as a circular buffer
-          std::vector<std::vector<float> > data_;
+          std::vector<const float*> data_;
 
           /// Index of the last pushed data chunk in the data_ circular buffer
           size_t data_current_idx_;
@@ -180,7 +186,6 @@ namespace pcl
           std::vector<unsigned char> data_invalid_count_;
 
       };
-
 
     }
 
