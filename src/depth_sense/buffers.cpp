@@ -38,107 +38,142 @@
 #include <iostream>
 #include <cstring>
 
+#include <pcl/pcl_macros.h>
+
 #include "depth_sense/buffers.h"
 
-pcl::io::depth_sense::SingleBuffer::SingleBuffer ()
+pcl::io::depth_sense::Buffer::Buffer (size_t size)
+: size_ (size)
+{
+}
+
+pcl::io::depth_sense::SingleBuffer::SingleBuffer (size_t size)
+: Buffer (size)
 {
 }
 
 float
 pcl::io::depth_sense::SingleBuffer::operator[] (size_t idx) const
 {
+  assert (idx < size_);
   return (data_[idx]);
 }
 
 void
 pcl::io::depth_sense::SingleBuffer::push (const float* data)
 {
+  assert ((sizeof (data) / sizeof (float)) == size_);
   data_ = data;
 }
 
 pcl::io::depth_sense::MedianBuffer::MedianBuffer (size_t size,
-                                                  size_t window_size,
-                                                  float invalid_value)
-: size_ (size)
+                                                  size_t window_size)
+: Buffer (size)
 , window_size_ (window_size)
 , midpoint_ (window_size_ / 2)
-, current_idx_ (0)
-, invalid_value_ (invalid_value)
+, data_current_idx_ (window_size_ - 1)
+, invalid_value_ (std::numeric_limits<float>::quiet_NaN ())
 {
   assert (size_ > 0);
-  assert (window_size_ > 0);
+  assert (window_size_ > 0 &&
+          window_size_ <= std::numeric_limits<unsigned char>::max ());
 
-  buffer_.resize (window_size_);
+  data_.resize (window_size_);
   for (size_t i = 0; i < window_size_; ++i)
-    buffer_[i].resize (size_, invalid_value_);
+    data_[i].resize (size_, invalid_value_);
 
-  indices_.resize (size_);
+  data_argsort_indices_.resize (size_);
   for (size_t i = 0; i < size_; ++i)
-    indices_[i].resize (window_size_, 0);
+  {
+    data_argsort_indices_[i].resize (window_size_);
+    for (size_t j = 0; j < window_size_; ++j)
+      data_argsort_indices_[i][j] = j;
+  }
+
+  data_invalid_count_.resize (size_, window_size_);
 }
 
 float
 pcl::io::depth_sense::MedianBuffer::operator[] (size_t idx) const
 {
-  return (buffer_[indices_[idx][midpoint_]][idx]);
+  assert (idx < size_);
+  int midpoint = (window_size_ - data_invalid_count_[idx]) / 2;
+  return (data_[data_argsort_indices_[idx][midpoint]][idx]);
 }
 
 void
 pcl::io::depth_sense::MedianBuffer::push (const float* data)
 {
+  assert ((sizeof (data) / sizeof (float)) == size_);
+
+  if (++data_current_idx_ >= window_size_)
+    data_current_idx_ = 0;
+
+  // New data will replace the column with index data_current_idx_. Before
+  // overwriting it, we go through all the new-old value pairs and update
+  // data_argsort_indices_ to maintain sorted order.
   for (size_t i = 0; i < size_; ++i)
   {
-    const float& value = data[i];
-    const float& old_value = buffer_[current_idx_][i];
-    if (value == old_value)
+    const float& new_value = data[i];
+    const float& old_value = data_[data_current_idx_][i];
+    bool new_is_nan = isnan (new_value);
+    bool old_is_nan = isnan (old_value);
+    if (compare (new_value, old_value) == 0)
       continue;
-    std::vector<unsigned char>& indices = indices_[i];
-    // Find a position for value so that indices is sorted
-    int low = 0;
-    int high = window_size_ - 1;
-    int midpoint = 0;
-    int insert_at;
-    while (low <= high)
-    {
-      midpoint = low + (high - low) / 2;
-      const float& midpoint_value = buffer_[indices[midpoint]][i];
-      if (value > midpoint_value)
-      {
-        low = midpoint + 1;
-      }
-      else
-      {
-        high = midpoint - 1;
-      }
-    }
-    if (value > buffer_[indices[midpoint]][i])
-      insert_at = low;
-    else
-      insert_at = high;
-    if (value > old_value)
+    std::vector<unsigned char>& argsort_indices = data_argsort_indices_[i];
+    // Rewrite the argsort indices before or after the position where we insert
+    // depending on the relation between the old and new values
+    if (compare (new_value, old_value) == 1)
     {
       for (int j = 0; j < window_size_; ++j)
-        if (indices[j] == current_idx_)
+        if (argsort_indices[j] == data_current_idx_)
         {
-          for (int k = j; k < insert_at; ++k)
-            std::swap (indices[k], indices[k + 1]);
+          int k = j + 1;
+          while (k < window_size_ && compare (new_value, data_[argsort_indices[k]][i]) == 1)
+          {
+            std::swap (argsort_indices[k - 1], argsort_indices[k]);
+            ++k;
+          }
           break;
         }
     }
     else
     {
       for (int j = window_size_ - 1; j >= 0; --j)
-        if (indices[j] == current_idx_)
+        if (argsort_indices[j] == data_current_idx_)
         {
-          for (int k = j; k > insert_at; --k)
-            std::swap (indices[k], indices[k - 1]);
+          int k = j - 1;
+          while (k >= 0 && compare (new_value, data_[argsort_indices[k]][i]) == -1)
+          {
+            std::swap (argsort_indices[k], argsort_indices[k + 1]);
+            --k;
+          }
           break;
         }
     }
+
+    if (new_is_nan && !old_is_nan)
+      ++data_invalid_count_[i];
+    else if (!new_is_nan && old_is_nan)
+      --data_invalid_count_[i];
   }
 
-  memcpy (&buffer_[current_idx_][0], data, sizeof (float) * size_);
-  if (++current_idx_ == window_size_)
-    current_idx_ = 0;
+  // Finally overwrite the data
+  memcpy (&data_[data_current_idx_][0], data, sizeof (float) * size_);
+}
+
+int pcl::io::depth_sense::MedianBuffer::compare (float a, float b)
+{
+  bool a_is_nan = pcl_isnan (a);
+  bool b_is_nan = pcl_isnan (b);
+  if (a_is_nan && b_is_nan)
+    return 0;
+  if (a_is_nan)
+    return 1;
+  if (b_is_nan)
+    return -1;
+  if (a == b)
+    return 0;
+  return a > b ? 1 : -1;
 }
 

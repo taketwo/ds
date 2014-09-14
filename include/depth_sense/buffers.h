@@ -64,6 +64,18 @@ namespace pcl
           virtual void
           push (const float* data) = 0;
 
+          inline size_t
+          size () const
+          {
+            return (size_);
+          }
+
+        protected:
+
+          Buffer (size_t size);
+
+          const size_t size_;
+
       };
 
       class SingleBuffer : public Buffer
@@ -71,7 +83,7 @@ namespace pcl
 
         public:
 
-          SingleBuffer ();
+          SingleBuffer (size_t size);
 
           virtual float
           operator[] (size_t idx) const;
@@ -90,9 +102,7 @@ namespace pcl
 
         public:
 
-          MedianBuffer (size_t size,
-                        size_t window_size,
-                        float invalid_value = std::numeric_limits<float>::quiet_NaN ());
+          MedianBuffer (size_t size, size_t window_size);
 
           virtual float
           operator[] (size_t idx) const;
@@ -102,13 +112,31 @@ namespace pcl
 
         private:
 
+          /** Compare two floating point numbers.
+            *
+            * NaN is assumed to be larger than any other number. If both values
+            * are NaNs, they are assumed to be equal.
+            *
+            * \return -1 if \c a < \c b, 0 if \c a == \c b, 1 if \c a > \c b */
+          static int compare (float a, float b);
+
           const size_t window_size_;
           const size_t midpoint_;
-          const size_t size_;
-          size_t current_idx_;
           const float invalid_value_;
-          std::vector<std::vector<float> > buffer_;
-          std::vector<std::vector<unsigned char> > indices_;
+
+          /// Data pushed into the buffer (last window_size_ chunks), logically
+          /// organized as a circular buffer
+          std::vector<std::vector<float> > data_;
+
+          /// Index of the last pushed data chunk in the data_ circular buffer
+          size_t data_current_idx_;
+
+          /// Indices that the argsort function would produce for data_ (with
+          /// dimensions swapped)
+          std::vector<std::vector<unsigned char> > data_argsort_indices_;
+
+          /// Number of invalid values in the buffer
+          std::vector<unsigned char> data_invalid_count_;
 
       };
 

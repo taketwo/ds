@@ -37,28 +37,45 @@
 
 #include <gtest/gtest.h>
 
+#include <cmath>
+
 #include "depth_sense/buffers.h"
 
 using namespace pcl::io::depth_sense;
 
+template <typename Buffer> void
+checkBuffer (Buffer& buffer, const float* data, const float* expected, size_t size)
+{
+  const float* dptr = data;
+  const float* eptr = expected;
+  for (size_t i = 0; i < size; ++i)
+  {
+    std::cout << "i " << i << std::endl;
+    buffer.push (dptr);
+    for (size_t j = 0; j < buffer.size (); ++j)
+      if (isnan (eptr[j]))
+        EXPECT_TRUE (isnan (buffer[j]));
+      else
+        EXPECT_EQ (eptr[j], buffer[j]);
+    dptr += buffer.size ();
+    eptr += buffer.size ();
+  }
+}
+
 TEST (BuffersTest, SingleBuffer)
 {
-  SingleBuffer sb;
+  SingleBuffer sb (1);
   const float data[] = {5, 4, 3, 2, 1};
   sb.push (data);
   for (size_t i = 0; i < sizeof (data) / sizeof (float); ++i)
-    EXPECT_EQ (data[i], sb[i]);
+  checkBuffer (sb, data, data, sizeof (data) / sizeof (float));
 }
 
 TEST (BuffersTest, MedianBufferWindow1)
 {
   MedianBuffer mb (1, 1);
   const float data[] = {5, 4, 3, 2, 1};
-  for (size_t i = 0; i < sizeof (data) / sizeof (float); ++i)
-  {
-    mb.push (data + i);
-    EXPECT_EQ (data[i], mb[0]);
-  }
+  checkBuffer (mb, data, data, sizeof (data) / sizeof (float));
 }
 
 TEST (BuffersTest, MedianBufferWindow2)
@@ -67,21 +84,13 @@ TEST (BuffersTest, MedianBufferWindow2)
     MedianBuffer mb (1, 2);
     const float data[] = {5, 4, 3, 2, 1};
     const float median[] = {5, 5, 4, 3, 2};
-    for (size_t i = 0; i < sizeof (data) / sizeof (float); ++i)
-    {
-      mb.push (data + i);
-      EXPECT_EQ (median[i], mb[0]);
-    }
+    checkBuffer (mb, data, median, sizeof (data) / sizeof (float));
   }
   {
     MedianBuffer mb (1, 2);
     const float data[] = {3, 4, 1, 3, 4};
     const float median[] = {3, 4, 4, 3, 4};
-    for (size_t i = 0; i < sizeof (data) / sizeof (float); ++i)
-    {
-      mb.push (data + i);
-      EXPECT_EQ (median[i], mb[0]);
-    }
+    checkBuffer (mb, data, median, sizeof (data) / sizeof (float));
   }
 }
 
@@ -91,21 +100,70 @@ TEST (BuffersTest, MedianBufferWindow3)
     MedianBuffer mb (1, 3);
     const float data[] = {5, 4, 3, 2, 1, 0, -1};
     const float median[] = {5, 5, 4, 3, 2, 1, 0};
-    for (size_t i = 0; i < sizeof (data) / sizeof (float); ++i)
-    {
-      mb.push (data + i);
-      EXPECT_EQ (median[i], mb[0]);
-    }
+    checkBuffer (mb, data, median, sizeof (data) / sizeof (float));
   }
   {
     MedianBuffer mb (1, 3);
     const float data[] = {3, 4, 1, 3, 4, 0, -1};
     const float median[] = {3, 4, 3, 3, 3, 3, 0};
-    for (size_t i = 0; i < sizeof (data) / sizeof (float); ++i)
-    {
-      mb.push (data + i);
-      EXPECT_EQ (median[i], mb[0]);
-    }
+    checkBuffer (mb, data, median, sizeof (data) / sizeof (float));
+  }
+  {
+    MedianBuffer mb (1, 3);
+    const float data[] = {-4, -1, 3, -4, 1, 3, 4, 0};
+    const float median[] = {-4, -1, -1, -1, 1, 1, 3, 3};
+    checkBuffer (mb, data, median, sizeof (data) / sizeof (float));
+  }
+}
+
+TEST (BuffersTest, MedianBufferWindow4)
+{
+  {
+    MedianBuffer mb (1, 4);
+    const float data[] = {5, 4, 3, 2, 1, 0, -1};
+    const float median[] = {5, 5, 4, 4, 3, 2, 1};
+    checkBuffer (mb, data, median, sizeof (data) / sizeof (float));
+  }
+  {
+    MedianBuffer mb (1, 4);
+    const float data[] = {-4, -1, 3, -4, 1, 3, 4, 0};
+    const float median[] = {-4, -1, -1, -1, 1, 3, 3, 3};
+    checkBuffer (mb, data, median, sizeof (data) / sizeof (float));
+  }
+}
+
+TEST (BuffersTest, MedianBufferPushNaN)
+{
+  const float nan = std::numeric_limits<float>::quiet_NaN ();
+  {
+    MedianBuffer mb (1, 3);
+    const float data[] = {5, 4, 3, nan, 1, nan, nan, nan, 9, 3, 1};
+    const float median[] = {5, 5, 4, 4, 3, 1, 1, nan, 9, 9, 3};
+    checkBuffer (mb, data, median, sizeof (data) / sizeof (float));
+  }
+  {
+    MedianBuffer mb (1, 4);
+    const float data[] = {-4, -1, 3, -4, 1, 3, 4, 0};
+    const float median[] = {-4, -1, -1, -1, 1, 3, 3, 3};
+    checkBuffer (mb, data, median, sizeof (data) / sizeof (float));
+  }
+}
+
+TEST (BuffersTest, MedianBufferSize3Window3)
+{
+  {
+    MedianBuffer mb (3, 3);
+    const float data[] = {3, 3, 3, 1, 1, 1, 0, 0, 0};
+    const float median[] = {3, 3, 3, 3, 3, 3, 1, 1, 1};
+    std::cout << sizeof(data) << std::endl;
+    checkBuffer (mb, data, median, sizeof (data) / sizeof (float) / mb.size ());
+  }
+  {
+    MedianBuffer mb (3, 3);
+    const float data[] = {3, 2, 1, 1, 1, 1, 3, 2, 1, 1, 2, 3};
+    const float median[] = {3, 2, 1, 3, 2, 1, 3, 2, 1, 1, 2, 1};
+    std::cout << sizeof(data) << std::endl;
+    checkBuffer (mb, data, median, sizeof (data) / sizeof (float) / mb.size ());
   }
 }
 

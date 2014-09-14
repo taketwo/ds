@@ -48,7 +48,7 @@ pcl::DepthSenseGrabber::DepthSenseGrabber (const std::string& device_id)
 , is_running_ (false)
 , confidence_threshold_ (50)
 , color_data_ (COLOR_SIZE * 3)
-, depth_buffer_ (new SingleBuffer)
+, depth_buffer_ (new SingleBuffer (SIZE))
 {
   if (device_id == "")
     device_id_ = DepthSenseDeviceManager::getInstance ()->captureDevice (this);
