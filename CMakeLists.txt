@@ -4,7 +4,7 @@ project(ds)
 
 option(BUILD_TESTS "Build tests." OFF)
 
-find_package(PCL REQUIRED)
+find_package(PCL 1.7.2 REQUIRED)
 
 set(DEPTHSENSESDK_DIR /opt/softkinetic/DepthSenseSDK)
 set(DEPTHSENSESDK_INCLUDE_DIR ${DEPTHSENSESDK_DIR}/include)
