@@ -120,6 +120,7 @@ class DepthSenseViewer
     : grabber_ (grabber)
     , viewer_ ("DepthSense Viewer")
     , threshold_ (50)
+    , window_ (5)
     {
       viewer_.registerKeyboardCallback (&DepthSenseViewer::keyboardCallback, *this);
     }
@@ -152,6 +153,21 @@ class DepthSenseViewer
     void
     keyboardCallback (const pcl::visualization::KeyboardEvent& event, void*)
     {
+      if (event.keyDown () && (event.getKeyCode () == 'w' || event.getKeyCode () == 'W'))
+      {
+        if (event.getKeyCode () == 'w')
+          window_ += 1;
+        else if (event.getKeyCode () == 'W')
+          window_ -= 1;
+
+        if (window_ < 0)
+          window_ = 0;
+
+        pcl::console::print_info ("Window size: ");
+        pcl::console::print_value ("%i\n", window_);
+
+        grabber_.useTemporalFiltering (window_);
+      }
       if (event.keyDown () && (event.getKeyCode () == 't' || event.getKeyCode () == 'T'))
       {
         if (event.getKeyCode () == 't')
@@ -167,6 +183,11 @@ class DepthSenseViewer
 
         grabber_.setConfidenceThreshold (threshold_);
       }
+      if (event.keyDown () && event.getKeyCode () == 'u')
+      {
+        pcl::console::print_info ("Temporal filtering disabled");
+        grabber_.useTemporalFiltering (1);
+      }
     }
 
     pcl::DepthSenseGrabber& grabber_;
@@ -174,6 +195,7 @@ class DepthSenseViewer
     boost::signals2::connection connection_;
 
     int threshold_;
+    int window_;
 
 };
 

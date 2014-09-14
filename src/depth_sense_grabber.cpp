@@ -117,6 +117,17 @@ pcl::DepthSenseGrabber::setConfidenceThreshold (int threshold)
 }
 
 void
+pcl::DepthSenseGrabber::useTemporalFiltering (size_t window_size)
+{
+  if (depth_buffer_->size () != window_size)
+  {
+    stop ();
+    depth_buffer_.reset (new MedianBuffer (SIZE, window_size));
+    start ();
+  }
+}
+
+void
 pcl::DepthSenseGrabber::setDepthIntrinsics (const DepthSense::IntrinsicParameters& intrinsics)
 {
   depth_intrinsics_ = intrinsics;
@@ -234,7 +245,7 @@ pcl::DepthSenseGrabber::onDepthDataReceived (DepthSense::DepthNode node, DepthSe
 
     for (int i = 0; i < SIZE; i++)
     {
-      const float& z = data.depthMapFloatingPoint[i];
+      const float& z = (*depth_buffer_)[i];
       if (z == -1.0)
         xyzrgba_cloud->points[i].x = xyzrgba_cloud->points[i].y = xyzrgba_cloud->points[i].z = nan;
       else

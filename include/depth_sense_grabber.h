@@ -129,6 +129,9 @@ namespace pcl
       void
       setConfidenceThreshold (int threshold);
 
+      void
+      useTemporalFiltering (size_t window_size);
+
       inline std::string
       getDeviceSerialNumber () const
       {
