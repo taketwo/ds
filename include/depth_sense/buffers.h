@@ -140,6 +140,48 @@ namespace pcl
 
       };
 
+      class AverageBuffer : public Buffer
+      {
+
+        public:
+
+          AverageBuffer (size_t size, size_t window_size);
+
+          virtual float
+          operator[] (size_t idx) const;
+
+          virtual void
+          push (const float* data);
+
+        private:
+
+          /** Compare two floating point numbers.
+            *
+            * NaN is assumed to be larger than any other number. If both values
+            * are NaNs, they are assumed to be equal.
+            *
+            * \return -1 if \c a < \c b, 0 if \c a == \c b, 1 if \c a > \c b */
+          static int compare (float a, float b);
+
+          const size_t window_size_;
+          const float invalid_value_;
+
+          /// Data pushed into the buffer (last window_size_ chunks), logically
+          /// organized as a circular buffer
+          std::vector<std::vector<float> > data_;
+
+          /// Index of the last pushed data chunk in the data_ circular buffer
+          size_t data_current_idx_;
+
+          /// Current sum of the buffer
+          std::vector<float> data_sum_;
+
+          /// Number of invalid values in the buffer
+          std::vector<unsigned char> data_invalid_count_;
+
+      };
+
+
     }
 
   }

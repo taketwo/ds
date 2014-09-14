@@ -116,8 +116,8 @@ pcl::io::depth_sense::MedianBuffer::push (const float* data)
   {
     const float& new_value = data[i];
     const float& old_value = data_[data_current_idx_][i];
-    bool new_is_nan = isnan (new_value);
-    bool old_is_nan = isnan (old_value);
+    bool new_is_nan = pcl_isnan (new_value);
+    bool old_is_nan = pcl_isnan (old_value);
     if (compare (new_value, old_value) == 0)
       continue;
     std::vector<unsigned char>& argsort_indices = data_argsort_indices_[i];
@@ -175,5 +175,67 @@ int pcl::io::depth_sense::MedianBuffer::compare (float a, float b)
   if (a == b)
     return 0;
   return a > b ? 1 : -1;
+}
+
+pcl::io::depth_sense::AverageBuffer::AverageBuffer (size_t size,
+                                                    size_t window_size)
+: Buffer (size)
+, window_size_ (window_size)
+, data_current_idx_ (window_size_ - 1)
+, invalid_value_ (std::numeric_limits<float>::quiet_NaN ())
+{
+  assert (size_ > 0);
+  assert (window_size_ > 0 &&
+          window_size_ <= std::numeric_limits<unsigned char>::max ());
+
+  data_.resize (window_size_);
+  for (size_t i = 0; i < window_size_; ++i)
+    data_[i].resize (size_, invalid_value_);
+
+  data_sum_.resize (size_, 0);
+  data_invalid_count_.resize (size_, window_size_);
+}
+
+float
+pcl::io::depth_sense::AverageBuffer::operator[] (size_t idx) const
+{
+  assert (idx < size_);
+  if (data_invalid_count_[idx] == window_size_)
+    return (invalid_value_);
+  else
+    return (data_sum_[idx] / (window_size_ - data_invalid_count_[idx]));
+}
+
+void
+pcl::io::depth_sense::AverageBuffer::push (const float* data)
+{
+  assert ((sizeof (data) / sizeof (float)) == size_);
+
+  if (++data_current_idx_ >= window_size_)
+    data_current_idx_ = 0;
+
+  // New data will replace the column with index data_current_idx_. Before
+  // overwriting it, we go through the old values and subtract them from the
+  // data_sum_
+  for (size_t i = 0; i < size_; ++i)
+  {
+    const float& new_value = data[i];
+    const float& old_value = data_[data_current_idx_][i];
+    bool new_is_nan = pcl_isnan (new_value);
+    bool old_is_nan = pcl_isnan (old_value);
+
+    if (!old_is_nan)
+      data_sum_[i] -= old_value;
+    if (!new_is_nan)
+      data_sum_[i] += new_value;
+
+    if (new_is_nan && !old_is_nan)
+      ++data_invalid_count_[i];
+    else if (!new_is_nan && old_is_nan)
+      --data_invalid_count_[i];
+  }
+
+  // Finally overwrite the data
+  memcpy (&data_[data_current_idx_][0], data, sizeof (float) * size_);
 }
 
