@@ -45,6 +45,7 @@
 #include <pcl/console/parse.h>
 #include <pcl/common/time.h>
 #include <pcl/visualization/pcl_visualizer.h>
+#include <pcl/filters/fast_bilateral.h>
 //#include <pcl/io/io_exception.h>
 #include "io_exception.h"
 
@@ -70,6 +71,17 @@ printHelp (int, char **argv)
   std::cout << "     --list, -l : List connected DepthSense devices"                          << std::endl;
   std::cout << "     --xyz      : View XYZ-only clouds"                                       << std::endl;
   std::cout << std::endl;
+  std::cout << "Keyboard commands:"                                                           << std::endl;
+  std::cout << std::endl;
+  std::cout << "   When the focus is on the viewer window, the following keyboard commands"   << std::endl;
+  std::cout << "   are available:"                                                            << std::endl;
+  std::cout << "     * t/T : increase or decrease depth data confidence threshold"            << std::endl;
+  std::cout << "     * k   : enable next temporal filtering method"                           << std::endl;
+  std::cout << "     * b   : toggle bilateral filtering"                                      << std::endl;
+  std::cout << "     * a/A : increase or decrease bilateral filter spatial sigma"             << std::endl;
+  std::cout << "     * z/Z : increase or decrease bilateral filter range sigma"               << std::endl;
+  std::cout << "     * h   : print the list of standard PCL viewer commands"                  << std::endl;
+  std::cout << std::endl;
   std::cout << "Notes:"                                                                       << std::endl;
   std::cout << std::endl;
   std::cout << "   The device to grab data from is selected using device_id argument. It"     << std::endl;
@@ -79,9 +91,6 @@ printHelp (int, char **argv)
   std::cout << std::endl;
   std::cout << "   If device_id is not given, then the first available device will be used."  << std::endl;
   std::cout << std::endl;
-  std::cout << "   The confidence threshold for depth data can be increased or decreased by"  << std::endl;
-  std::cout << "   pressing \"t\" or \"T\" respectively while the focus is on the viewer"     << std::endl;
-  std::cout << "   window."                                                                   << std::endl;
 }
 
 void
@@ -123,10 +132,12 @@ class DepthSenseViewer
     , threshold_ (50)
     , window_ (5)
     , temporal_filtering_ (pcl::DepthSenseGrabber::DepthSense_None)
+    , with_bilateral_ (false)
     {
       viewer_.registerKeyboardCallback (&DepthSenseViewer::keyboardCallback, *this);
       typename PointCloudT::Ptr dummy (new PointCloudT);
       viewer_.addPointCloud (dummy, "cloud");
+      viewer_.resetCamera ();
     }
 
     ~DepthSenseViewer ()
@@ -161,81 +172,133 @@ class DepthSenseViewer
       if (!viewer_.wasStopped ())
       {
         boost::mutex::scoped_lock lock (new_cloud_mutex_);
-        new_cloud_ = cloud;
+        if (with_bilateral_)
+        {
+          bilateral_.setInputCloud (cloud);
+          typename PointCloudT::Ptr filtered (new PointCloudT);
+          bilateral_.filter (*filtered);
+          new_cloud_ = filtered;
+        }
+        else
+        {
+          new_cloud_ = cloud;
+        }
       }
     }
 
     void
     keyboardCallback (const pcl::visualization::KeyboardEvent& event, void*)
     {
-      if (event.keyDown () && (event.getKeyCode () == 'w' || event.getKeyCode () == 'W'))
+      if (event.keyDown ())
       {
-        if (event.getKeyCode () == 'w')
-          window_ += 1;
-        else if (event.getKeyCode () == 'W')
-          window_ -= 1;
-
-        if (window_ < 1)
-          window_ = 1;
-
-        pcl::console::print_info ("Window size: ");
-        pcl::console::print_value ("%i\n", window_);
-
-        grabber_.enableTemporalFiltering (temporal_filtering_, window_);
-      }
-
-      if (event.keyDown () && (event.getKeyCode () == 't' || event.getKeyCode () == 'T'))
-      {
-        if (event.getKeyCode () == 't')
-          threshold_ += 10;
-        else if (event.getKeyCode () == 'T')
-          threshold_ -= 10;
-
-        if (threshold_ < 0)
-          threshold_ = 0;
-
-        pcl::console::print_info ("Confidence threshold: ");
-        pcl::console::print_value ("%i\n", threshold_);
-
-        grabber_.setConfidenceThreshold (threshold_);
-      }
-
-      if (event.keyDown () && event.getKeyCode () == 'k')
-      {
-        pcl::console::print_info ("Confidence threshold: ");
-        switch (temporal_filtering_)
+        if (event.getKeyCode () == 'w' || event.getKeyCode () == 'W')
         {
-          case pcl::DepthSenseGrabber::DepthSense_None:
-            {
-              temporal_filtering_ = pcl::DepthSenseGrabber::DepthSense_Median;
-              pcl::console::print_value ("Median\n");
-              break;
-            }
-          case pcl::DepthSenseGrabber::DepthSense_Median:
-            {
-              temporal_filtering_ = pcl::DepthSenseGrabber::DepthSense_Average;
-              pcl::console::print_value ("Average\n");
-              break;
-            }
-          case pcl::DepthSenseGrabber::DepthSense_Average:
-            {
-              temporal_filtering_ = pcl::DepthSenseGrabber::DepthSense_None;
-              pcl::console::print_value ("None\n");
-              break;
-            }
+          window_ += event.getKeyCode () == 'w' ? 1 : -1;
+          if (window_ < 1)
+            window_ = 1;
+          pcl::console::print_info ("Temporal filtering window size: ");
+          pcl::console::print_value ("%i\n", window_);
+          grabber_.enableTemporalFiltering (temporal_filtering_, window_);
         }
-        grabber_.enableTemporalFiltering (temporal_filtering_, window_);
+        if (event.getKeyCode () == 't' || event.getKeyCode () == 'T')
+        {
+          threshold_ += event.getKeyCode () == 't' ? 10 : -10;
+          if (threshold_ < 0)
+            threshold_ = 0;
+          pcl::console::print_info ("Confidence threshold: ");
+          pcl::console::print_value ("%i\n", threshold_);
+          grabber_.setConfidenceThreshold (threshold_);
+        }
+        if (event.getKeyCode () == 'k')
+        {
+          pcl::console::print_info ("Temporal filtering: ");
+          switch (temporal_filtering_)
+          {
+            case pcl::DepthSenseGrabber::DepthSense_None:
+              {
+                temporal_filtering_ = pcl::DepthSenseGrabber::DepthSense_Median;
+                pcl::console::print_value ("median\n");
+                break;
+              }
+            case pcl::DepthSenseGrabber::DepthSense_Median:
+              {
+                temporal_filtering_ = pcl::DepthSenseGrabber::DepthSense_Average;
+                pcl::console::print_value ("average\n");
+                break;
+              }
+            case pcl::DepthSenseGrabber::DepthSense_Average:
+              {
+                temporal_filtering_ = pcl::DepthSenseGrabber::DepthSense_None;
+                pcl::console::print_value ("none\n");
+                break;
+              }
+          }
+          grabber_.enableTemporalFiltering (temporal_filtering_, window_);
+        }
+        if (event.getKeyCode () == 'b')
+        {
+          with_bilateral_ = !with_bilateral_;
+          pcl::console::print_info ("Bilateral filtering: ");
+          pcl::console::print_value (with_bilateral_ ? "ON\n" : "OFF\n");
+        }
+        if (event.getKeyCode () == 'a' || event.getKeyCode () == 'A')
+        {
+          float s = bilateral_.getSigmaS ();
+          s += event.getKeyCode () == 'a' ? 1 : -1;
+          if (s <= 1)
+            s = 1;
+          pcl::console::print_info ("Bilateral filter spatial sigma: ");
+          pcl::console::print_value ("%.0f\n", s);
+          bilateral_.setSigmaS (s);
+        }
+        if (event.getKeyCode () == 'z' || event.getKeyCode () == 'Z')
+        {
+          float r = bilateral_.getSigmaR ();
+          r += event.getKeyCode () == 'z' ? 0.01 : -0.01;
+          if (r <= 0.01)
+            r = 0.01;
+          pcl::console::print_info ("Bilateral filter range sigma: ");
+          pcl::console::print_value ("%.2f\n", r);
+          bilateral_.setSigmaR (r);
+        }
+        displaySettings ();
       }
     }
+
+    void displaySettings ()
+    {
+      const int dx = 5;
+      const int dy = 14;
+      const int fs = 10;
+      boost::format name_fmt ("text%i");
+      const char* TF[] = {"off", "median", "average"};
+      std::vector<boost::format> entries;
+      entries.push_back (boost::format ("confidence threshold: %i") % threshold_);
+      // Temporal filter settings
+      std::string tfs = boost::str (boost::format (", window size %i") % window_);
+      entries.push_back (boost::format ("temporal filtering: %s%s") % TF[temporal_filtering_] % (temporal_filtering_ == pcl::DepthSenseGrabber::DepthSense_None ? "" : tfs));
+      // Bilateral filter settings
+      std::string bfs = boost::str (boost::format ("spatial sigma %.0f, range sigma %.2f") % bilateral_.getSigmaS () % bilateral_.getSigmaR ());
+      entries.push_back (boost::format ("bilateral filtering: %s") % (with_bilateral_ ? bfs : "off"));
+      for (size_t i = 0; i < entries.size (); ++i)
+      {
+        std::string name = boost::str (name_fmt % i);
+        std::string entry = boost::str (entries[i]);
+        if (!viewer_.updateText (entry, dx, dy + i * (fs + 2), fs, 1.0, 1.0, 1.0, name))
+          viewer_.addText (entry, dx, dy + i * (fs + 2), fs, 1.0, 1.0, 1.0, name);
+      }
     }
 
     pcl::DepthSenseGrabber& grabber_;
     pcl::visualization::PCLVisualizer viewer_;
     boost::signals2::connection connection_;
 
+    pcl::FastBilateralFilter<PointT> bilateral_;
+
     int threshold_;
     int window_;
     pcl::DepthSenseGrabber::TemporalFilteringType temporal_filtering_;
+    bool with_bilateral_;
 
     mutable boost::mutex new_cloud_mutex_;
     typename PointCloudT::ConstPtr new_cloud_;
