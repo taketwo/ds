@@ -44,6 +44,7 @@
 
 pcl::io::depth_sense::Buffer::Buffer (size_t size)
 : size_ (size)
+, invalid_value_ (std::numeric_limits<float>::quiet_NaN ())
 {
 }
 
@@ -72,7 +73,6 @@ pcl::io::depth_sense::MedianBuffer::MedianBuffer (size_t size,
 , window_size_ (window_size)
 , midpoint_ (window_size_ / 2)
 , data_current_idx_ (window_size_ - 1)
-, invalid_value_ (std::numeric_limits<float>::quiet_NaN ())
 {
   assert (size_ > 0);
   assert (window_size_ > 0 &&

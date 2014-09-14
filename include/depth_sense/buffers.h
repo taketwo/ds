@@ -75,6 +75,7 @@ namespace pcl
           Buffer (size_t size);
 
           const size_t size_;
+          const float invalid_value_;
 
       };
 
@@ -122,7 +123,6 @@ namespace pcl
 
           const size_t window_size_;
           const size_t midpoint_;
-          const float invalid_value_;
 
           /// Data pushed into the buffer (last window_size_ chunks), logically
           /// organized as a circular buffer
