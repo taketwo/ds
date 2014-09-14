@@ -46,7 +46,7 @@ using namespace pcl::io::depth_sense;
 pcl::DepthSenseGrabber::DepthSenseGrabber (const std::string& device_id)
 : Grabber ()
 , is_running_ (false)
-, temporal_filtering_ (false)
+, temporal_filtering_type_ (DepthSense_None)
 , confidence_threshold_ (50)
 , color_data_ (COLOR_SIZE * 3)
 , depth_buffer_ (new SingleBuffer (SIZE))
@@ -118,27 +118,42 @@ pcl::DepthSenseGrabber::setConfidenceThreshold (int threshold)
 }
 
 void
-pcl::DepthSenseGrabber::enableTemporalFiltering (size_t window_size)
+pcl::DepthSenseGrabber::enableTemporalFiltering (TemporalFilteringType type, size_t window_size)
 {
-  if (!temporal_filtering_ || depth_buffer_->size () != window_size)
+  if (temporal_filtering_type_ != type ||
+      (type != DepthSense_None && depth_buffer_->size () != window_size))
   {
-    stop ();
-    depth_buffer_.reset (new MedianBuffer (SIZE, window_size));
-    temporal_filtering_ = true;
-    start ();
+    bool was_running = is_running_;
+    if (was_running)
+      stop ();
+    switch (type)
+    {
+      case DepthSense_None:
+        {
+          depth_buffer_.reset (new SingleBuffer (SIZE));
+          break;
+        }
+      case DepthSense_Median:
+        {
+          depth_buffer_.reset (new MedianBuffer (SIZE, window_size));
+          break;
+        }
+      case DepthSense_Average:
+        {
+          depth_buffer_.reset (new AverageBuffer (SIZE, window_size));
+          break;
+        }
+    }
+    temporal_filtering_type_ = type;
+    if (was_running)
+      start ();
   }
 }
 
 void
 pcl::DepthSenseGrabber::disableTemporalFiltering ()
 {
-  if (temporal_filtering_)
-  {
-    stop ();
-    depth_buffer_.reset (new SingleBuffer (SIZE));
-    temporal_filtering_ = false;
-    start ();
-  }
+  enableTemporalFiltering (DepthSense_None, 1);
 }
 
 void

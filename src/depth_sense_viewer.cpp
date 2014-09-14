@@ -122,6 +122,7 @@ class DepthSenseViewer
     , viewer_ ("DepthSense Viewer")
     , threshold_ (50)
     , window_ (5)
+    , temporal_filtering_ (pcl::DepthSenseGrabber::DepthSense_None)
     {
       viewer_.registerKeyboardCallback (&DepthSenseViewer::keyboardCallback, *this);
       typename PointCloudT::Ptr dummy (new PointCloudT);
@@ -180,8 +181,9 @@ class DepthSenseViewer
         pcl::console::print_info ("Window size: ");
         pcl::console::print_value ("%i\n", window_);
 
-        grabber_.enableTemporalFiltering (window_);
+        grabber_.enableTemporalFiltering (temporal_filtering_, window_);
       }
+
       if (event.keyDown () && (event.getKeyCode () == 't' || event.getKeyCode () == 'T'))
       {
         if (event.getKeyCode () == 't')
@@ -197,11 +199,34 @@ class DepthSenseViewer
 
         grabber_.setConfidenceThreshold (threshold_);
       }
-      if (event.keyDown () && event.getKeyCode () == 'u')
+
+      if (event.keyDown () && event.getKeyCode () == 'k')
       {
-        pcl::console::print_info ("Temporal filtering disabled");
-        grabber_.disableTemporalFiltering ();
+        pcl::console::print_info ("Confidence threshold: ");
+        switch (temporal_filtering_)
+        {
+          case pcl::DepthSenseGrabber::DepthSense_None:
+            {
+              temporal_filtering_ = pcl::DepthSenseGrabber::DepthSense_Median;
+              pcl::console::print_value ("Median\n");
+              break;
+            }
+          case pcl::DepthSenseGrabber::DepthSense_Median:
+            {
+              temporal_filtering_ = pcl::DepthSenseGrabber::DepthSense_Average;
+              pcl::console::print_value ("Average\n");
+              break;
+            }
+          case pcl::DepthSenseGrabber::DepthSense_Average:
+            {
+              temporal_filtering_ = pcl::DepthSenseGrabber::DepthSense_None;
+              pcl::console::print_value ("None\n");
+              break;
+            }
+        }
+        grabber_.enableTemporalFiltering (temporal_filtering_, window_);
       }
+    }
     }
 
     pcl::DepthSenseGrabber& grabber_;
@@ -210,6 +235,7 @@ class DepthSenseViewer
 
     int threshold_;
     int window_;
+    pcl::DepthSenseGrabber::TemporalFilteringType temporal_filtering_;
 
     mutable boost::mutex new_cloud_mutex_;
     typename PointCloudT::ConstPtr new_cloud_;

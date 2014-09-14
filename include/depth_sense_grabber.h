@@ -81,6 +81,13 @@ namespace pcl
         DepthSense_QVGA_30Hz = 0,
       };
 
+      enum TemporalFilteringType
+      {
+        DepthSense_None = 0,
+        DepthSense_Median = 1,
+        DepthSense_Average = 2,
+      };
+
       /** Create a grabber for a DepthSense device.
         *
         * The grabber "captures" the device, making it impossible for other
@@ -130,7 +137,7 @@ namespace pcl
       setConfidenceThreshold (int threshold);
 
       void
-      enableTemporalFiltering (size_t window_size);
+      enableTemporalFiltering (TemporalFilteringType type, size_t window_size);
 
       void
       disableTemporalFiltering ();
@@ -177,7 +184,7 @@ namespace pcl
       std::string device_id_;
 
       bool is_running_;
-      bool temporal_filtering_;
+      TemporalFilteringType temporal_filtering_type_;
 
       int confidence_threshold_;
 
