@@ -37,13 +37,14 @@
 
 #include <iostream>
 
+#include <boost/thread/mutex.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/format.hpp>
 
 #include <pcl/console/print.h>
 #include <pcl/console/parse.h>
 #include <pcl/common/time.h>
-#include <pcl/visualization/cloud_viewer.h>
+#include <pcl/visualization/pcl_visualizer.h>
 //#include <pcl/io/io_exception.h>
 #include "io_exception.h"
 
@@ -123,6 +124,8 @@ class DepthSenseViewer
     , window_ (5)
     {
       viewer_.registerKeyboardCallback (&DepthSenseViewer::keyboardCallback, *this);
+      typename PointCloudT::Ptr dummy (new PointCloudT);
+      viewer_.addPointCloud (dummy, "cloud");
     }
 
     ~DepthSenseViewer ()
@@ -137,7 +140,15 @@ class DepthSenseViewer
       connection_ = grabber_.registerCallback (f);
       grabber_.start ();
       while (!viewer_.wasStopped ())
-        boost::this_thread::sleep (boost::posix_time::seconds (1));
+      {
+        if (new_cloud_)
+        {
+          boost::mutex::scoped_lock lock (new_cloud_mutex_);
+          viewer_.updatePointCloud (new_cloud_, "cloud");
+          new_cloud_.reset ();
+        }
+        viewer_.spinOnce (1, true);
+      }
       grabber_.stop ();
     }
 
@@ -147,7 +158,10 @@ class DepthSenseViewer
     cloudCallback (typename PointCloudT::ConstPtr cloud)
     {
       if (!viewer_.wasStopped ())
-        viewer_.showCloud (cloud);
+      {
+        boost::mutex::scoped_lock lock (new_cloud_mutex_);
+        new_cloud_ = cloud;
+      }
     }
 
     void
@@ -160,8 +174,8 @@ class DepthSenseViewer
         else if (event.getKeyCode () == 'W')
           window_ -= 1;
 
-        if (window_ < 0)
-          window_ = 0;
+        if (window_ < 1)
+          window_ = 1;
 
         pcl::console::print_info ("Window size: ");
         pcl::console::print_value ("%i\n", window_);
@@ -191,11 +205,14 @@ class DepthSenseViewer
     }
 
     pcl::DepthSenseGrabber& grabber_;
-    pcl::visualization::CloudViewer viewer_;
+    pcl::visualization::PCLVisualizer viewer_;
     boost::signals2::connection connection_;
 
     int threshold_;
     int window_;
+
+    mutable boost::mutex new_cloud_mutex_;
+    typename PointCloudT::ConstPtr new_cloud_;
 
 };
 
