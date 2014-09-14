@@ -130,7 +130,10 @@ namespace pcl
       setConfidenceThreshold (int threshold);
 
       void
-      useTemporalFiltering (size_t window_size);
+      enableTemporalFiltering (size_t window_size);
+
+      void
+      disableTemporalFiltering ();
 
       inline std::string
       getDeviceSerialNumber () const
@@ -174,6 +177,7 @@ namespace pcl
       std::string device_id_;
 
       bool is_running_;
+      bool temporal_filtering_;
 
       int confidence_threshold_;
 

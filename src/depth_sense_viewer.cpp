@@ -180,7 +180,7 @@ class DepthSenseViewer
         pcl::console::print_info ("Window size: ");
         pcl::console::print_value ("%i\n", window_);
 
-        grabber_.useTemporalFiltering (window_);
+        grabber_.enableTemporalFiltering (window_);
       }
       if (event.keyDown () && (event.getKeyCode () == 't' || event.getKeyCode () == 'T'))
       {
@@ -200,7 +200,7 @@ class DepthSenseViewer
       if (event.keyDown () && event.getKeyCode () == 'u')
       {
         pcl::console::print_info ("Temporal filtering disabled");
-        grabber_.useTemporalFiltering (1);
+        grabber_.disableTemporalFiltering ();
       }
     }
 

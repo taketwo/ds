@@ -46,6 +46,7 @@ using namespace pcl::io::depth_sense;
 pcl::DepthSenseGrabber::DepthSenseGrabber (const std::string& device_id)
 : Grabber ()
 , is_running_ (false)
+, temporal_filtering_ (false)
 , confidence_threshold_ (50)
 , color_data_ (COLOR_SIZE * 3)
 , depth_buffer_ (new SingleBuffer (SIZE))
@@ -117,12 +118,25 @@ pcl::DepthSenseGrabber::setConfidenceThreshold (int threshold)
 }
 
 void
-pcl::DepthSenseGrabber::useTemporalFiltering (size_t window_size)
+pcl::DepthSenseGrabber::enableTemporalFiltering (size_t window_size)
 {
-  if (depth_buffer_->size () != window_size)
+  if (!temporal_filtering_ || depth_buffer_->size () != window_size)
   {
     stop ();
     depth_buffer_.reset (new MedianBuffer (SIZE, window_size));
+    temporal_filtering_ = true;
+    start ();
+  }
+}
+
+void
+pcl::DepthSenseGrabber::disableTemporalFiltering ()
+{
+  if (temporal_filtering_)
+  {
+    stop ();
+    depth_buffer_.reset (new SingleBuffer (SIZE));
+    temporal_filtering_ = false;
     start ();
   }
 }
