@@ -43,6 +43,7 @@
 #include <cassert>
 
 #include <boost/cstdint.hpp>
+#include <boost/thread/mutex.hpp>
 
 namespace pcl
 {
@@ -104,6 +105,7 @@ namespace pcl
         private:
 
           const float* data_;
+          mutable boost::mutex data_mutex_;
 
       };
 
@@ -150,6 +152,8 @@ namespace pcl
           /// Number of invalid values in the buffer
           std::vector<unsigned char> data_invalid_count_;
 
+          mutable boost::mutex data_mutex_;
+
       };
 
       class AverageBuffer : public Buffer
@@ -184,6 +188,8 @@ namespace pcl
 
           /// Number of invalid values in the buffer
           std::vector<unsigned char> data_invalid_count_;
+
+          mutable boost::mutex data_mutex_;
 
       };
 

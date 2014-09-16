@@ -70,6 +70,7 @@ pcl::io::depth_sense::SingleBuffer::SingleBuffer (size_t size)
 
 pcl::io::depth_sense::SingleBuffer::~SingleBuffer ()
 {
+  boost::mutex::scoped_lock lock (data_mutex_);
   delete[] data_;
 }
 
@@ -84,6 +85,7 @@ void
 pcl::io::depth_sense::SingleBuffer::push (const float* data)
 {
   assert ((sizeof (data) / sizeof (float)) == size_);
+  boost::mutex::scoped_lock lock (data_mutex_);
   delete[] data_;
   data_ = data;
 }
@@ -115,6 +117,7 @@ pcl::io::depth_sense::MedianBuffer::MedianBuffer (size_t size,
 
 pcl::io::depth_sense::MedianBuffer::~MedianBuffer ()
 {
+  boost::mutex::scoped_lock lock (data_mutex_);
   for (size_t i = 0; i < window_size_; ++i)
     delete[] data_[i];
 }
@@ -131,6 +134,7 @@ void
 pcl::io::depth_sense::MedianBuffer::push (const float* data)
 {
   assert ((sizeof (data) / sizeof (float)) == size_);
+  boost::mutex::scoped_lock lock (data_mutex_);
 
   if (++data_current_idx_ >= window_size_)
     data_current_idx_ = 0;
@@ -223,6 +227,7 @@ pcl::io::depth_sense::AverageBuffer::AverageBuffer (size_t size,
 
 pcl::io::depth_sense::AverageBuffer::~AverageBuffer ()
 {
+  boost::mutex::scoped_lock lock (data_mutex_);
   for (size_t i = 0; i < window_size_; ++i)
     delete[] data_[i];
 }
@@ -241,6 +246,7 @@ void
 pcl::io::depth_sense::AverageBuffer::push (const float* data)
 {
   assert ((sizeof (data) / sizeof (float)) == size_);
+  boost::mutex::scoped_lock lock (data_mutex_);
 
   if (++data_current_idx_ >= window_size_)
     data_current_idx_ = 0;
