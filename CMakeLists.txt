@@ -9,11 +9,6 @@ set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/Modules/" ${CMAKE_MODULE_PATH})
 find_package(PCL 1.7.2 REQUIRED)
 find_package(DSSDK REQUIRED)
 
-set(DEPTHSENSESDK_DIR /opt/softkinetic/DepthSenseSDK)
-set(DEPTHSENSESDK_INCLUDE_DIR ${DEPTHSENSESDK_DIR}/include)
-set(DEPTHSENSESDK_LIBRARY_DIR ${DEPTHSENSESDK_DIR}/lib)
-set(DEPTHSENSESDK_LIBRARIES ${DEPTHSENSESDK_LIBRARY_DIR}/libDepthSense.so ${DEPTHSENSESDK_LIBRARY_DIR}/libDepthSensePlugins.so ${DEPTHSENSESDK_LIBRARY_DIR}/libturbojpeg.so ${DEPTHSENSESDK_LIBRARY_DIR}/libusb-1.0.so)
-
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include_directories(
@@ -27,7 +22,6 @@ link_directories(
 )
 
 add_definitions(
-  -msse2
   ${PCL_DEFINITIONS}
 )
 
