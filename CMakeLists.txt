@@ -4,7 +4,10 @@ project(ds)
 
 option(BUILD_TESTS "Build tests." OFF)
 
+set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/Modules/" ${CMAKE_MODULE_PATH})
+
 find_package(PCL 1.7.2 REQUIRED)
+find_package(DSSDK REQUIRED)
 
 set(DEPTHSENSESDK_DIR /opt/softkinetic/DepthSenseSDK)
 set(DEPTHSENSESDK_INCLUDE_DIR ${DEPTHSENSESDK_DIR}/include)
@@ -16,12 +19,11 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 include_directories(
   include
   ${PCL_INCLUDE_DIRS}
-  ${DEPTHSENSESDK_INCLUDE_DIR}
+  ${DSSDK_INCLUDE_DIRS}
 )
 
 link_directories(
   ${PCL_LIBRARY_DIRS}
-  ${DEPTHSENSESDK_LIBRARY_DIR}
 )
 
 add_definitions(
@@ -42,7 +44,7 @@ add_executable(depth_sense_viewer
 target_link_libraries(depth_sense_viewer
   depth_sense
   ${PCL_LIBRARIES}
-  ${DEPTHSENSESDK_LIBRARIES}
+  ${DSSDK_LIBRARIES}
 )
 
 add_executable(multi_grabber
@@ -51,7 +53,7 @@ add_executable(multi_grabber
 target_link_libraries(multi_grabber
   depth_sense
   ${PCL_LIBRARIES}
-  ${DEPTHSENSESDK_LIBRARIES}
+  ${DSSDK_LIBRARIES}
 )
 
 if (BUILD_TESTS)
