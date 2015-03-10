@@ -39,169 +39,190 @@
 
 #include <cmath>
 
-#include "depth_sense/buffers.h"
+#include "buffers.h"
 
-using namespace pcl::io::depth_sense;
+using namespace pcl::io;
 
-template <typename Buffer> void
-checkBuffer (Buffer& buffer, const float* data, const float* expected, size_t size)
+template <typename T>
+class BuffersTest : public ::testing::Test
 {
-  const float* dptr = data;
-  const float* eptr = expected;
-  for (size_t i = 0; i < size; ++i)
-  {
-    float* d = new float[size];
-    memcpy (d, dptr, size * sizeof (float));
-    buffer.push (d);
-    for (size_t j = 0; j < buffer.size (); ++j)
-      if (isnan (eptr[j]))
-        EXPECT_TRUE (isnan (buffer[j]));
+
+  public:
+
+    BuffersTest ()
+    {
+      if (std::numeric_limits<T>::has_quiet_NaN)
+        invalid_ = std::numeric_limits<T>::quiet_NaN ();
       else
-        EXPECT_EQ (eptr[j], buffer[j]);
-    dptr += buffer.size ();
-    eptr += buffer.size ();
+        invalid_ = 0;
+    }
+
+    template <typename Buffer> void
+    checkBuffer (Buffer& buffer, const T* data, const T* expected, size_t size)
+    {
+      const T* dptr = data;
+      const T* eptr = expected;
+      for (size_t i = 0; i < size; ++i)
+      {
+        std::vector<T> d (buffer.size ());
+        memcpy (d.data (), dptr, buffer.size () * sizeof (T));
+        buffer.push (d);
+        for (size_t j = 0; j < buffer.size (); ++j)
+          if (isnan (eptr[j]))
+            EXPECT_TRUE (isnan (buffer[j]));
+          else
+            EXPECT_EQ (eptr[j], buffer[j]);
+        dptr += buffer.size ();
+        eptr += buffer.size ();
+      }
+    }
+
+    T invalid_;
+
+};
+
+typedef ::testing::Types<char, int, float> DataTypes;
+TYPED_TEST_CASE (BuffersTest, DataTypes);
+
+TYPED_TEST (BuffersTest, SingleBuffer)
+{
+  SingleBuffer<TypeParam> sb (1);
+  const TypeParam data[] = {5, 4, 3, 2, 1};
+  this->checkBuffer (sb, data, data, sizeof (data) / sizeof (TypeParam));
+}
+
+TYPED_TEST (BuffersTest, MedianBufferWindow1)
+{
+  MedianBuffer<TypeParam> mb (1, 1);
+  const TypeParam data[] = {5, 4, 3, 2, 1};
+  this->checkBuffer (mb, data, data, sizeof (data) / sizeof (TypeParam));
+}
+
+TYPED_TEST (BuffersTest, MedianBufferWindow2)
+{
+  {
+    MedianBuffer<TypeParam> mb (1, 2);
+    const TypeParam data[] = {5, 4, 3, 2, 1};
+    const TypeParam median[] = {5, 5, 4, 3, 2};
+    this->checkBuffer (mb, data, median, sizeof (data) / sizeof (TypeParam));
+  }
+  {
+    MedianBuffer<TypeParam> mb (1, 2);
+    const TypeParam data[] = {3, 4, 1, 3, 4};
+    const TypeParam median[] = {3, 4, 4, 3, 4};
+    this->checkBuffer (mb, data, median, sizeof (data) / sizeof (TypeParam));
   }
 }
 
-TEST (BuffersTest, SingleBuffer)
-{
-  SingleBuffer sb (1);
-  const float data[] = {5, 4, 3, 2, 1};
-  checkBuffer (sb, data, data, sizeof (data) / sizeof (float));
-}
-
-TEST (BuffersTest, MedianBufferWindow1)
-{
-  MedianBuffer mb (1, 1);
-  const float data[] = {5, 4, 3, 2, 1};
-  checkBuffer (mb, data, data, sizeof (data) / sizeof (float));
-}
-
-TEST (BuffersTest, MedianBufferWindow2)
+TYPED_TEST (BuffersTest, MedianBufferWindow3)
 {
   {
-    MedianBuffer mb (1, 2);
-    const float data[] = {5, 4, 3, 2, 1};
-    const float median[] = {5, 5, 4, 3, 2};
-    checkBuffer (mb, data, median, sizeof (data) / sizeof (float));
+    MedianBuffer<TypeParam> mb (1, 3);
+    const TypeParam data[] = {5, 4, 3, 2, 1, -1, -1};
+    const TypeParam median[] = {5, 5, 4, 3, 2, 1, -1};
+    this->checkBuffer (mb, data, median, sizeof (data) / sizeof (TypeParam));
   }
   {
-    MedianBuffer mb (1, 2);
-    const float data[] = {3, 4, 1, 3, 4};
-    const float median[] = {3, 4, 4, 3, 4};
-    checkBuffer (mb, data, median, sizeof (data) / sizeof (float));
+    MedianBuffer<TypeParam> mb (1, 3);
+    const TypeParam data[] = {3, 4, 1, 3, 4, -1, -1};
+    const TypeParam median[] = {3, 4, 3, 3, 3, 3, -1};
+    this->checkBuffer (mb, data, median, sizeof (data) / sizeof (TypeParam));
+  }
+  {
+    MedianBuffer<TypeParam> mb (1, 3);
+    const TypeParam data[] = {-4, -1, 3, -4, 1, 3, 4, -1};
+    const TypeParam median[] = {-4, -1, -1, -1, 1, 1, 3, 3};
+    this->checkBuffer (mb, data, median, sizeof (data) / sizeof (TypeParam));
   }
 }
 
-TEST (BuffersTest, MedianBufferWindow3)
+TYPED_TEST (BuffersTest, MedianBufferWindow4)
 {
   {
-    MedianBuffer mb (1, 3);
-    const float data[] = {5, 4, 3, 2, 1, 0, -1};
-    const float median[] = {5, 5, 4, 3, 2, 1, 0};
-    checkBuffer (mb, data, median, sizeof (data) / sizeof (float));
+    MedianBuffer<TypeParam> mb (1, 4);
+    const TypeParam data[] = {5, 4, 3, 2, 1, -1, -1};
+    const TypeParam median[] = {5, 5, 4, 4, 3, 2, 1};
+    this->checkBuffer (mb, data, median, sizeof (data) / sizeof (TypeParam));
   }
   {
-    MedianBuffer mb (1, 3);
-    const float data[] = {3, 4, 1, 3, 4, 0, -1};
-    const float median[] = {3, 4, 3, 3, 3, 3, 0};
-    checkBuffer (mb, data, median, sizeof (data) / sizeof (float));
-  }
-  {
-    MedianBuffer mb (1, 3);
-    const float data[] = {-4, -1, 3, -4, 1, 3, 4, 0};
-    const float median[] = {-4, -1, -1, -1, 1, 1, 3, 3};
-    checkBuffer (mb, data, median, sizeof (data) / sizeof (float));
+    MedianBuffer<TypeParam> mb (1, 4);
+    const TypeParam data[] = {-4, -1, 3, -4, 1, 3, 4, -2};
+    const TypeParam median[] = {-4, -1, -1, -1, 1, 3, 3, 3};
+    this->checkBuffer (mb, data, median, sizeof (data) / sizeof (TypeParam));
   }
 }
 
-TEST (BuffersTest, MedianBufferWindow4)
+TYPED_TEST (BuffersTest, MedianBufferPushInvalid)
+{
+  const TypeParam& invalid = this->invalid_;
+  MedianBuffer<TypeParam> mb (1, 3);
+  const TypeParam data[] = {5, 4, 3, invalid, 1, invalid, invalid, invalid, 9, 3, 1};
+  const TypeParam median[] = {5, 5, 4, 4, 3, 1, 1, invalid, 9, 9, 3};
+  this->checkBuffer (mb, data, median, sizeof (data) / sizeof (TypeParam));
+}
+
+TYPED_TEST (BuffersTest, MedianBufferSize3Window3)
 {
   {
-    MedianBuffer mb (1, 4);
-    const float data[] = {5, 4, 3, 2, 1, 0, -1};
-    const float median[] = {5, 5, 4, 4, 3, 2, 1};
-    checkBuffer (mb, data, median, sizeof (data) / sizeof (float));
+    MedianBuffer<TypeParam> mb (3, 3);
+    const TypeParam data[] = {3, 3, 3, 1, 1, 1, -1, -1, -1};
+    const TypeParam median[] = {3, 3, 3, 3, 3, 3, 1, 1, 1};
+    this->checkBuffer (mb, data, median, sizeof (data) / sizeof (TypeParam) / mb.size ());
   }
   {
-    MedianBuffer mb (1, 4);
-    const float data[] = {-4, -1, 3, -4, 1, 3, 4, 0};
-    const float median[] = {-4, -1, -1, -1, 1, 3, 3, 3};
-    checkBuffer (mb, data, median, sizeof (data) / sizeof (float));
+    MedianBuffer<TypeParam> mb (3, 3);
+    const TypeParam data[] = {3, 2, 1, 1, 1, 1, 3, 2, 1, 1, 2, 3};
+    const TypeParam median[] = {3, 2, 1, 3, 2, 1, 3, 2, 1, 1, 2, 1};
+    this->checkBuffer (mb, data, median, sizeof (data) / sizeof (TypeParam) / mb.size ());
   }
 }
 
-TEST (BuffersTest, MedianBufferPushNaN)
+TYPED_TEST (BuffersTest, AverageBufferWindow1)
 {
-  const float nan = std::numeric_limits<float>::quiet_NaN ();
-  MedianBuffer mb (1, 3);
-  const float data[] = {5, 4, 3, nan, 1, nan, nan, nan, 9, 3, 1};
-  const float median[] = {5, 5, 4, 4, 3, 1, 1, nan, 9, 9, 3};
-  checkBuffer (mb, data, median, sizeof (data) / sizeof (float));
+  AverageBuffer<TypeParam> ab (1, 1);
+  const TypeParam data[] = {5, 4, 3, 2, 1};
+  this->checkBuffer (ab, data, data, sizeof (data) / sizeof (TypeParam));
 }
 
-TEST (BuffersTest, MedianBufferSize3Window3)
+TYPED_TEST (BuffersTest, AverageBufferWindow2)
 {
   {
-    MedianBuffer mb (3, 3);
-    const float data[] = {3, 3, 3, 1, 1, 1, 0, 0, 0};
-    const float median[] = {3, 3, 3, 3, 3, 3, 1, 1, 1};
-    checkBuffer (mb, data, median, sizeof (data) / sizeof (float) / mb.size ());
+    AverageBuffer<TypeParam> ab (1, 2);
+    const TypeParam data[] = {5, 3, 3, 1, 1};
+    const TypeParam average[] = {5, 4, 3, 2, 1};
+    this->checkBuffer (ab, data, average, sizeof (data) / sizeof (TypeParam));
   }
   {
-    MedianBuffer mb (3, 3);
-    const float data[] = {3, 2, 1, 1, 1, 1, 3, 2, 1, 1, 2, 3};
-    const float median[] = {3, 2, 1, 3, 2, 1, 3, 2, 1, 1, 2, 1};
-    checkBuffer (mb, data, median, sizeof (data) / sizeof (float) / mb.size ());
-  }
-}
-
-TEST (BuffersTest, AverageBufferWindow1)
-{
-  AverageBuffer ab (1, 1);
-  const float data[] = {5, 4, 3, 2, 1};
-  checkBuffer (ab, data, data, sizeof (data) / sizeof (float));
-}
-
-TEST (BuffersTest, AverageBufferWindow2)
-{
-  {
-    AverageBuffer ab (1, 2);
-    const float data[] = {5, 4, 3, 2, 1};
-    const float median[] = {5, 4.5, 3.5, 2.5, 1.5};
-    checkBuffer (ab, data, median, sizeof (data) / sizeof (float));
-  }
-  {
-    AverageBuffer ab (1, 2);
-    const float data[] = {3, 4, 1, 3, 4};
-    const float median[] = {3, 3.5, 2.5, 2, 3.5};
-    checkBuffer (ab, data, median, sizeof (data) / sizeof (float));
+    AverageBuffer<TypeParam> ab (1, 2);
+    const TypeParam data[] = {3, 5, 1, 13, 3};
+    const TypeParam average[] = {3, 4, 3, 7, 8};
+    this->checkBuffer (ab, data, average, sizeof (data) / sizeof (TypeParam));
   }
 }
 
-TEST (BuffersTest, AverageBufferWindow3)
+TYPED_TEST (BuffersTest, AverageBufferWindow3)
 {
   {
-    AverageBuffer ab (1, 3);
-    const float data[] = {5, 4, 3, 2, 1, 0, -1};
-    const float median[] = {5, 4.5, 4, 3, 2, 1, 0};
-    checkBuffer (ab, data, median, sizeof (data) / sizeof (float));
+    AverageBuffer<TypeParam> ab (1, 3);
+    const TypeParam data[] = {5, 3, 1, 2, -3, 4, -7};
+    const TypeParam average[] = {5, 4, 3, 2, 0, 1, -2};
+    this->checkBuffer (ab, data, average, sizeof (data) / sizeof (TypeParam));
   }
   {
-    AverageBuffer ab (1, 3);
-    const float data[] = {3, 4, 2, 3, 4, -1, -3};
-    const float median[] = {3, 3.5, 3, 3, 3, 2, 0};
-    checkBuffer (ab, data, median, sizeof (data) / sizeof (float));
+    AverageBuffer<TypeParam> ab (1, 3);
+    const TypeParam data[] = {3, -5, 2, -3, 4, -1, -3};
+    const TypeParam average[] = {3, -1, 0, -2, 1, 0, 0};
+    this->checkBuffer (ab, data, average, sizeof (data) / sizeof (TypeParam));
   }
 }
 
-TEST (BuffersTest, AverageBufferPushNaN)
+TYPED_TEST (BuffersTest, AverageBufferPushInvalid)
 {
-  const float nan = std::numeric_limits<float>::quiet_NaN ();
-  AverageBuffer ab (1, 3);
-  const float data[] = {5, 4, 3, nan, 3, nan, nan, nan, 9, 3, 0};
-  const float median[] = {5, 4.5, 4, 3.5, 3, 3, 3, nan, 9, 6, 4};
-  checkBuffer (ab, data, median, sizeof (data) / sizeof (float));
+  const TypeParam& invalid = this->invalid_;
+  AverageBuffer<TypeParam> ab (1, 3);
+  const TypeParam data[] = {5, 3, 7, invalid, 1, invalid, invalid, invalid, 9, 3, -3};
+  const TypeParam median[] = {5, 4, 5, 5, 4, 1, 1, invalid, 9, 6, 3};
+  this->checkBuffer (ab, data, median, sizeof (data) / sizeof (TypeParam));
 }
 
 int main (int argc, char **argv)
