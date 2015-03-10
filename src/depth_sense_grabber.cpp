@@ -39,7 +39,7 @@
 
 #include "depth_sense_grabber.h"
 #include "depth_sense/depth_sense_device_manager.h"
-#include "depth_sense/buffers.h"
+#include "buffers.h"
 
 using namespace pcl::io::depth_sense;
 
@@ -49,7 +49,7 @@ pcl::DepthSenseGrabber::DepthSenseGrabber (const std::string& device_id)
 , temporal_filtering_type_ (DepthSense_None)
 , confidence_threshold_ (50)
 , color_data_ (COLOR_SIZE * 3)
-, depth_buffer_ (new SingleBuffer (SIZE))
+, depth_buffer_ (new pcl::io::SingleBuffer<float> (SIZE))
 {
   if (device_id == "")
     device_id_ = DepthSenseDeviceManager::getInstance ()->captureDevice (this);
@@ -130,17 +130,17 @@ pcl::DepthSenseGrabber::enableTemporalFiltering (TemporalFilteringType type, siz
     {
       case DepthSense_None:
         {
-          depth_buffer_.reset (new SingleBuffer (SIZE));
+          depth_buffer_.reset (new pcl::io::SingleBuffer<float> (SIZE));
           break;
         }
       case DepthSense_Median:
         {
-          depth_buffer_.reset (new MedianBuffer (SIZE, window_size));
+          depth_buffer_.reset (new pcl::io::MedianBuffer<float> (SIZE, window_size));
           break;
         }
       case DepthSense_Average:
         {
-          depth_buffer_.reset (new AverageBuffer (SIZE, window_size));
+          depth_buffer_.reset (new pcl::io::AverageBuffer<float> (SIZE, window_size));
           break;
         }
     }
@@ -245,8 +245,8 @@ pcl::DepthSenseGrabber::onDepthDataReceived (DepthSense::DepthNode node, DepthSe
 
   static const float nan = std::numeric_limits<float>::quiet_NaN ();
 
-  float* depth_data = new float[SIZE];
-  memcpy (depth_data, &data.depthMapFloatingPoint[0], SIZE * sizeof (float));
+  std::vector<float> depth_data (SIZE);
+  memcpy (depth_data.data (), &data.depthMapFloatingPoint[0], SIZE * sizeof (float));
   for (int i = 0; i < SIZE; i++)
     if (data.confidenceMap[i] < confidence_threshold_)
       depth_data[i] = nan;

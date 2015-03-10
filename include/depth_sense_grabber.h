@@ -56,11 +56,14 @@ namespace pcl
 
   namespace io
   {
+
+    template <typename T> class Buffer;
+
     namespace depth_sense
     {
       class DepthSenseDeviceManager;
-      class Buffer;
     }
+
   }
 
   class PCL_EXPORTS DepthSenseGrabber : public Grabber
@@ -216,7 +219,7 @@ namespace pcl
       static const int COLOR_HEIGHT = 480;
       static const int COLOR_SIZE = COLOR_WIDTH * COLOR_HEIGHT;
 
-      boost::shared_ptr<pcl::io::depth_sense::Buffer> depth_buffer_;
+      boost::shared_ptr<pcl::io::Buffer<float> > depth_buffer_;
 
   };
 
