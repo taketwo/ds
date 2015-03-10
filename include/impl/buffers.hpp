@@ -97,15 +97,14 @@ pcl::io::SingleBuffer<T>::push (std::vector<T>& data)
 
 template <typename T>
 pcl::io::MedianBuffer<T>::MedianBuffer (size_t size,
-                                                    size_t window_size)
+                                        unsigned char window_size)
 : Buffer<T> (size)
 , window_size_ (window_size)
 , midpoint_ (window_size_ / 2)
 , data_current_idx_ (window_size_ - 1)
 {
   assert (size_ > 0);
-  assert (window_size_ > 0 &&
-          window_size_ <= std::numeric_limits<unsigned char>::max ());
+  assert (window_size_ > 0);
 
   data_.resize (window_size_);
   for (size_t i = 0; i < window_size_; ++i)
@@ -216,14 +215,13 @@ pcl::io::MedianBuffer<T>::compare (T a, T b)
 
 template <typename T>
 pcl::io::AverageBuffer<T>::AverageBuffer (size_t size,
-                                                      size_t window_size)
+                                          unsigned char window_size)
 : Buffer<T> (size)
 , window_size_ (window_size)
 , data_current_idx_ (window_size_ - 1)
 {
   assert (size_ > 0);
-  assert (window_size_ > 0 &&
-          window_size_ <= std::numeric_limits<unsigned char>::max ());
+  assert (window_size_ > 0);
 
   data_.resize (window_size_);
   for (size_t i = 0; i < window_size_; ++i)

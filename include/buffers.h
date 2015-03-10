@@ -114,7 +114,7 @@ namespace pcl
 
       public:
 
-        MedianBuffer (size_t size, size_t window_size);
+        MedianBuffer (size_t size, unsigned char window_size);
 
         virtual
         ~MedianBuffer ();
@@ -135,15 +135,15 @@ namespace pcl
           * \return -1 if \c a < \c b, 0 if \c a == \c b, 1 if \c a > \c b */
         static int compare (T a, T b);
 
-        const size_t window_size_;
-        const size_t midpoint_;
+        const unsigned char window_size_;
+        const unsigned char midpoint_;
 
         /// Data pushed into the buffer (last window_size_ chunks), logically
         /// organized as a circular buffer
         std::vector<std::vector<T> > data_;
 
         /// Index of the last pushed data chunk in the data_ circular buffer
-        size_t data_current_idx_;
+        unsigned char data_current_idx_;
 
         /// Indices that the argsort function would produce for data_ (with
         /// dimensions swapped)
@@ -164,7 +164,7 @@ namespace pcl
 
       public:
 
-        AverageBuffer (size_t size, size_t window_size);
+        AverageBuffer (size_t size, unsigned char window_size);
 
         virtual
         ~AverageBuffer ();
@@ -177,14 +177,14 @@ namespace pcl
 
       private:
 
-        const size_t window_size_;
+        const unsigned char window_size_;
 
         /// Data pushed into the buffer (last window_size_ chunks), logically
         /// organized as a circular buffer
         std::vector<std::vector<T> > data_;
 
         /// Index of the last pushed data chunk in the data_ circular buffer
-        size_t data_current_idx_;
+        unsigned char data_current_idx_;
 
         /// Current sum of the buffer
         std::vector<T> data_sum_;
