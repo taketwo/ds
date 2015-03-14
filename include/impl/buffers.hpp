@@ -157,8 +157,8 @@ pcl::io::MedianBuffer<T>::push (std::vector<T>& data)
   {
     const T& new_value = data[i];
     const T& old_value = data_[data_current_idx_][i];
-    bool new_is_nan = buffer_traits<T>::is_invalid (new_value);
-    bool old_is_nan = buffer_traits<T>::is_invalid (old_value);
+    bool new_is_invalid = buffer_traits<T>::is_invalid (new_value);
+    bool old_is_invalid = buffer_traits<T>::is_invalid (old_value);
     if (compare (new_value, old_value) == 0)
       continue;
     std::vector<unsigned char>& argsort_indices = data_argsort_indices_[i];
@@ -193,9 +193,9 @@ pcl::io::MedianBuffer<T>::push (std::vector<T>& data)
         }
     }
 
-    if (new_is_nan && !old_is_nan)
+    if (new_is_invalid && !old_is_invalid)
       ++data_invalid_count_[i];
-    else if (!new_is_nan && old_is_nan)
+    else if (!new_is_invalid && old_is_invalid)
       --data_invalid_count_[i];
   }
 
@@ -207,13 +207,13 @@ pcl::io::MedianBuffer<T>::push (std::vector<T>& data)
 template <typename T> int
 pcl::io::MedianBuffer<T>::compare (T a, T b)
 {
-  bool a_is_nan = buffer_traits<T>::is_invalid (a);
-  bool b_is_nan = buffer_traits<T>::is_invalid (b);
-  if (a_is_nan && b_is_nan)
+  bool a_is_invalid = buffer_traits<T>::is_invalid (a);
+  bool b_is_invalid = buffer_traits<T>::is_invalid (b);
+  if (a_is_invalid && b_is_invalid)
     return 0;
-  if (a_is_nan)
+  if (a_is_invalid)
     return 1;
-  if (b_is_nan)
+  if (b_is_invalid)
     return -1;
   if (a == b)
     return 0;
@@ -269,17 +269,17 @@ pcl::io::AverageBuffer<T>::push (std::vector<T>& data)
   {
     const float& new_value = data[i];
     const float& old_value = data_[data_current_idx_][i];
-    bool new_is_nan = buffer_traits<T>::is_invalid (new_value);
-    bool old_is_nan = buffer_traits<T>::is_invalid (old_value);
+    bool new_is_invalid = buffer_traits<T>::is_invalid (new_value);
+    bool old_is_invalid = buffer_traits<T>::is_invalid (old_value);
 
-    if (!old_is_nan)
+    if (!old_is_invalid)
       data_sum_[i] -= old_value;
-    if (!new_is_nan)
+    if (!new_is_invalid)
       data_sum_[i] += new_value;
 
-    if (new_is_nan && !old_is_nan)
+    if (new_is_invalid && !old_is_invalid)
       ++data_invalid_count_[i];
-    else if (!new_is_nan && old_is_nan)
+    else if (!new_is_invalid && old_is_invalid)
       --data_invalid_count_[i];
   }
 
