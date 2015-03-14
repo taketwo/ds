@@ -48,8 +48,8 @@
 
 #include <DepthSense.hxx>
 
-// TODO: remove when mering upstream
-#include <depth_sense/time.h>
+// TODO: remove when merging upstream
+#include "depth_sense/time.h"
 
 namespace pcl
 {
@@ -66,6 +66,12 @@ namespace pcl
 
   }
 
+  /** Grabber for DepthSense devices (e.g. Creative Senz3D, SoftKinetic DS325).
+    *
+    * Requires [SoftKinetic DepthSense SDK](http://www.softkinetic.com/Support/Download).
+    *
+    * \author Sergey Alexandrov
+    * \ingroup io */
   class PCL_EXPORTS DepthSenseGrabber : public Grabber
   {
 
@@ -139,12 +145,18 @@ namespace pcl
       void
       setConfidenceThreshold (int threshold);
 
+      /** Enable temporal filtering of the depth data received from the device.
+        *
+        * The window size parameter is not relevant for `DepthSense_None`
+        * filtering type. */
       void
-      enableTemporalFiltering (TemporalFilteringType type, size_t window_size);
+      enableTemporalFiltering (TemporalFilteringType type, size_t window_size = 1);
 
+      /** Disable temporal filtering. */
       void
       disableTemporalFiltering ();
 
+      /** Get the serial number of device captured by the grabber. */
       inline std::string
       getDeviceSerialNumber () const
       {
@@ -187,9 +199,9 @@ namespace pcl
       std::string device_id_;
 
       bool is_running_;
-      TemporalFilteringType temporal_filtering_type_;
 
       int confidence_threshold_;
+      TemporalFilteringType temporal_filtering_type_;
 
       DepthSense::IntrinsicParameters depth_intrinsics_;
 

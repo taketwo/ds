@@ -37,17 +37,17 @@
 
 #include <boost/lexical_cast.hpp>
 
+#include "buffers.h"
 #include "depth_sense_grabber.h"
 #include "depth_sense/depth_sense_device_manager.h"
-#include "buffers.h"
 
 using namespace pcl::io::depth_sense;
 
 pcl::DepthSenseGrabber::DepthSenseGrabber (const std::string& device_id)
 : Grabber ()
 , is_running_ (false)
-, temporal_filtering_type_ (DepthSense_None)
 , confidence_threshold_ (50)
+, temporal_filtering_type_ (DepthSense_None)
 , color_data_ (COLOR_SIZE * 3)
 , depth_buffer_ (new pcl::io::SingleBuffer<float> (SIZE))
 {
@@ -226,14 +226,6 @@ pcl::DepthSenseGrabber::configureColorNode (DepthSense::ColorNode node) const
   config.framerate = FRAMERATE;
   node.setEnableColorMap (true);
   node.setConfiguration (config);
-  //node.setBrightness(0);
-  //node.setContrast(5);
-  //node.setSaturation(5);
-  //node.setHue(0);
-  //node.setGamma(3);
-  //node.setWhiteBalance(4650);
-  //node.setSharpness(5);
-  //node.setWhiteBalanceAuto(true);
 }
 
 void

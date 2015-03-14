@@ -51,6 +51,18 @@ namespace pcl
   namespace io
   {
 
+    /** An abstract base class for fixed-size data buffers.
+      *
+      * A new chunk of data can be inserted using the push() method; the data
+      * elements stored in the buffer can be accessed using operator[]().
+      *
+      * Concrete implementations of this interface (such as AverageBuffer or
+      * MedianBuffer) may perform arbitrary data processing under the hood and
+      * provide access to certain quantities computed based on the input data
+      * rather than the data themselves.
+      *
+      * \author Sergey Alexandrov
+      * \ingroup io */
     template <typename T>
     class Buffer
     {
@@ -62,12 +74,19 @@ namespace pcl
         virtual
         ~Buffer ();
 
+        /** Access an element at a given index. */
         virtual T
         operator[] (size_t idx) const = 0;
 
+        /** Insert a new chunk of data into the buffer.
+          *
+          * Note that the \a data parameter is not `const`-qualified. This is
+          * done to allow deriving classes to implement no-copy data insertion,
+          * where the data is "stolen" from the input argument. */
         virtual void
         push (std::vector<T>& data) = 0;
 
+        /** Get the size of the buffer. */
         inline size_t
         size () const
         {
@@ -82,12 +101,16 @@ namespace pcl
 
     };
 
+    /** A simple buffer that only stores data.
+      *
+      * The buffer is thread-safe. */
     template <typename T>
     class SingleBuffer : public Buffer<T>
     {
 
       public:
 
+        /** Construct a buffer of given size. */
         SingleBuffer (size_t size);
 
         virtual
@@ -108,20 +131,46 @@ namespace pcl
 
     };
 
+    /** A buffer that computes running window median of the data inserted.
+      *
+      * The buffer and window sizes are specified at construction time. The
+      * buffer size defines the number of elements in each data chunk that is
+      * inserted in the buffer. The window size is the number of last data
+      * chunks that are considered for median computation. The median is
+      * computed separately for 1st, 2nd, etc. element in data chunks.
+      *
+      * The data can contain invalid elements. For integral types zeros are
+      * assumed to be invalid elements, whereas for floating-point types it is
+      * quiet NaN. Invalid elements are ignored when computing median.
+      *
+      * The buffer is thread-safe. */
     template <typename T>
     class MedianBuffer : public Buffer<T>
     {
 
       public:
 
+        /** Construct a buffer of given size with given running window size.
+          *
+          * \param[in] size buffer size
+          * \param[in] window_size running window size over which the median
+          * value should be computed (0..255) */
         MedianBuffer (size_t size, unsigned char window_size);
 
         virtual
         ~MedianBuffer ();
 
+        /** Access an element at a given index.
+          *
+          * This operation is constant time. */
         virtual T
         operator[] (size_t idx) const;
 
+        /** Insert a new chunk of data into the buffer.
+          *
+          * This operation is linear in buffer size and window size.
+          *
+          * \param[in] data input data chunk, the memory will be "stolen" */
         virtual void
         push (std::vector<T>& data);
 
@@ -158,20 +207,46 @@ namespace pcl
 
     };
 
+    /** A buffer that computes running window average of the data inserted.
+      *
+      * The buffer and window sizes are specified at construction time. The
+      * buffer size defines the number of elements in each data chunk that is
+      * inserted in the buffer. The window size is the number of last data
+      * chunks that are considered for average computation. The average is
+      * computed separately for 1st, 2nd, etc. element in data chunks.
+      *
+      * The data can contain invalid elements. For integral types zeros are
+      * assumed to be invalid elements, whereas for floating-point types it is
+      * quiet NaN. Invalid elements are ignored when computing average.
+      *
+      * The buffer is thread-safe. */
     template <typename T>
     class AverageBuffer : public Buffer<T>
     {
 
       public:
 
+        /** Construct a buffer of given size with given running window size.
+          *
+          * \param[in] size buffer size
+          * \param[in] window_size running window size over which the median
+          * value should be computed (0..255) */
         AverageBuffer (size_t size, unsigned char window_size);
 
         virtual
         ~AverageBuffer ();
 
+        /** Access an element at a given index.
+          *
+          * This operation is constant time. */
         virtual T
         operator[] (size_t idx) const;
 
+        /** Insert a new chunk of data into the buffer.
+          *
+          * This operation is linear in buffer size.
+          *
+          * \param[in] data input data chunk, the memory will be "stolen" */
         virtual void
         push (std::vector<T>& data);
 

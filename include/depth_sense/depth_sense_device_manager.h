@@ -58,6 +58,8 @@ namespace pcl
     namespace depth_sense
     {
 
+      /** A helper class for enumerating and managing access to DepthSense
+        * devices. */
       class PCL_EXPORTS DepthSenseDeviceManager : boost::noncopyable
       {
 
@@ -78,30 +80,41 @@ namespace pcl
             return (instance);
           }
 
+          /** Get the number of connected DepthSense devices. */
           inline size_t
           getNumDevices ()
           {
             return (context_.getDevices ().size ());
           }
 
+          /** Capture first available device and associate it with a given
+            * grabber instance. */
           std::string
           captureDevice (DepthSenseGrabber* grabber);
 
+          /** Capture the device with given index and associate it with a given
+            * grabber instance. */
           std::string
           captureDevice (DepthSenseGrabber* grabber, size_t index);
 
+          /** Capture the device with given serial number and associate it with
+            * a given grabber instance. */
           std::string
           captureDevice (DepthSenseGrabber* grabber, const std::string& sn);
 
+          /** Release DepthSense device with given serial number. */
           void
           releaseDevice (const std::string& sn);
 
+          /** Reconfigure DepthSense device with given serial number. */
           void
           reconfigureDevice (const std::string& sn);
 
+          /** Start data capturing for a given device. */
           void
           startDevice (const std::string& sn);
 
+          /** Stop data capturing for a given device. */
           void
           stopDevice (const std::string& sn);
 
@@ -124,7 +137,7 @@ namespace pcl
 
           static boost::mutex mutex_;
 
-          // thread where the grabbing takes place
+          /// Thread where the grabbing takes place.
           boost::thread depth_sense_thread_;
 
           struct CapturedDevice
