@@ -58,8 +58,15 @@ pcl::io::depth_sense::DepthSenseDeviceManager::DepthSenseDeviceManager ()
 
 pcl::io::depth_sense::DepthSenseDeviceManager::~DepthSenseDeviceManager ()
 {
-  context_.quit ();
-  depth_sense_thread_.join ();
+  try
+  {
+    context_.quit();
+    depth_sense_thread_.join();
+  }
+  catch (DepthSense::InvalidOperationException& e)
+  {
+    // do nothing
+  }
 }
 
 std::string
