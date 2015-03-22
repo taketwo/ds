@@ -166,7 +166,7 @@ namespace pcl
     private:
 
       void
-      setDepthIntrinsics (const DepthSense::IntrinsicParameters& intrinsics);
+      setCameraParameters (const DepthSense::StereoCameraParameters& parameters);
 
       void
       configureDepthNode (DepthSense::DepthNode node) const;
@@ -188,6 +188,9 @@ namespace pcl
       void
       onColorDataReceived (DepthSense::ColorNode node, DepthSense::ColorNode::NewSampleReceivedData data);
 
+      template <typename Point> void
+      computeXYZ (PointCloud<Point>& cloud);
+
       // The manager should be able to invoke callbacks and configuration
       friend class pcl::io::depth_sense::DepthSenseDeviceManager;
 
@@ -203,11 +206,7 @@ namespace pcl
       int confidence_threshold_;
       TemporalFilteringType temporal_filtering_type_;
 
-      DepthSense::IntrinsicParameters depth_intrinsics_;
-
-      /// A matrix to map depth values at each depth image pixel to 3D point
-      /// coordinates (includes rectification and projection).
-      Eigen::MatrixXf z_to_point_map_;
+      boost::shared_ptr<DepthSense::ProjectionHelper> projection_;
 
       /// Indicates whether there are subscribers for PointXYZ signal. This is
       /// computed and stored on start()

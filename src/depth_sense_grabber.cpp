@@ -37,6 +37,8 @@
 
 #include <boost/lexical_cast.hpp>
 
+#include <pcl/common/io.h>
+
 #include "buffers.h"
 #include "depth_sense_grabber.h"
 #include "depth_sense/depth_sense_device_manager.h"
@@ -157,49 +159,9 @@ pcl::DepthSenseGrabber::disableTemporalFiltering ()
 }
 
 void
-pcl::DepthSenseGrabber::setDepthIntrinsics (const DepthSense::IntrinsicParameters& intrinsics)
+pcl::DepthSenseGrabber::setCameraParameters (const DepthSense::StereoCameraParameters& parameters)
 {
-  depth_intrinsics_ = intrinsics;
-
-  const float& cx = intrinsics.cx;
-  const float& cy = intrinsics.cy;
-  const float& fx = intrinsics.fx;
-  const float& fy = intrinsics.fy;
-  const float& k1 = intrinsics.k1;
-  const float& k2 = intrinsics.k2;
-  const float& k3 = intrinsics.k3;
-  const float& p1 = intrinsics.p1;
-  const float& p2 = intrinsics.p2;
-
-  z_to_point_map_.resize (SIZE, 3);
-
-  // Populate a matrix that will be used to map depth values to points coordinates.
-  // This code is based `Rectification` class from fovis (https://code.google.com/p/fovis/),
-  // which is in turn based on `cvUndistortPoints` from OpenCV.
-  for (int y = 0; y < HEIGHT; ++y)
-  {
-    for (int x = 0; x < WIDTH; ++x)
-    {
-      // Normalize according to principal point and focal length
-      double x1 = (x - cx) / fx;
-      double y1 = (y - cy) / fy;
-      double x0 = x1;
-      double y0 = y1;
-      // Iteratively undistort point
-      for (int j = 0; j < 5; ++j)
-      {
-        double r2 = x1 * x1 + y1 * y1;
-        double icdist = 1.0 / (1.0 + ((k3 * r2 + k2) * r2 + k1) * r2);
-        double delta_x = 2.0 * p1 * x1 * y1 + p2 * (r2 + 2 * x1 * x1);
-        double delta_y = p1 * (r2 + 2.0 * y1 * y1) + 2.0 * p2 * x1 * y1;
-        x1 = (x0 - delta_x) * icdist;
-        y1 = (y0 - delta_y) * icdist;
-      }
-      z_to_point_map_ (y * WIDTH + x, 0) = x1;
-      z_to_point_map_ (y * WIDTH + x, 1) = y1;
-      z_to_point_map_ (y * WIDTH + x, 2) = 1.0;
-    }
-  }
+  projection_.reset (new DepthSense::ProjectionHelper (parameters));
 }
 
 void
@@ -243,6 +205,7 @@ pcl::DepthSenseGrabber::onDepthDataReceived (DepthSense::DepthNode node, DepthSe
     if (data.confidenceMap[i] < confidence_threshold_)
       depth_data[i] = nan;
   depth_buffer_->push (depth_data);
+
   pcl::PointCloud<pcl::PointXYZ>::Ptr xyz_cloud;
   pcl::PointCloud<pcl::PointXYZRGBA>::Ptr xyzrgba_cloud;
 
@@ -251,14 +214,7 @@ pcl::DepthSenseGrabber::onDepthDataReceived (DepthSense::DepthNode node, DepthSe
     xyz_cloud.reset (new pcl::PointCloud<pcl::PointXYZ> (WIDTH, HEIGHT));
     xyz_cloud->is_dense = false;
 
-    for (int i = 0; i < SIZE; i++)
-    {
-      const float& z = (*depth_buffer_)[i];
-      if (pcl_isnan (z))
-        xyz_cloud->points[i].x = xyz_cloud->points[i].y = xyz_cloud->points[i].z = nan;
-      else
-        xyz_cloud->points[i].getVector3fMap () = z_to_point_map_.row (i) * z;
-    }
+    computeXYZ (*xyz_cloud);
 
     point_cloud_signal_->operator () (xyz_cloud);
   }
@@ -268,14 +224,13 @@ pcl::DepthSenseGrabber::onDepthDataReceived (DepthSense::DepthNode node, DepthSe
     xyzrgba_cloud.reset (new pcl::PointCloud<pcl::PointXYZRGBA> (WIDTH, HEIGHT));
     xyzrgba_cloud->is_dense = false;
 
+    if (need_xyz_)
+      copyPointCloud (*xyz_cloud, *xyzrgba_cloud);
+    else
+      computeXYZ (*xyzrgba_cloud);
+
     for (int i = 0; i < SIZE; i++)
     {
-      const float& z = (*depth_buffer_)[i];
-      if (pcl_isnan (z))
-        xyzrgba_cloud->points[i].x = xyzrgba_cloud->points[i].y = xyzrgba_cloud->points[i].z = nan;
-      else
-        xyzrgba_cloud->points[i].getVector3fMap () = z_to_point_map_.row (i) * z;
-
       const DepthSense::UV& uv = data.uvMap[i];
       int row = static_cast<int> (uv.v * COLOR_HEIGHT);
       int col = static_cast<int> (uv.u * COLOR_WIDTH);
@@ -295,3 +250,36 @@ pcl::DepthSenseGrabber::onColorDataReceived (DepthSense::ColorNode node, DepthSe
     memcpy (&color_data_[0], data.colorMap, color_data_.size ());
 }
 
+template <typename Point> void
+pcl::DepthSenseGrabber::computeXYZ (PointCloud<Point>& cloud)
+{
+  static const float nan = std::numeric_limits<float>::quiet_NaN ();
+
+  int i = 0;
+  DepthSense::FPExtended2DPoint point (DepthSense::Point2D (0, 0), 0);
+  DepthSense::FPVertex vertex;
+  while (point.point.y < HEIGHT)
+  {
+    point.point.x = 0;
+    while (point.point.x < WIDTH)
+    {
+      point.depth = (*depth_buffer_)[i];
+      if (pcl_isnan (point.depth))
+      {
+        cloud.points[i].x = nan;
+        cloud.points[i].y = nan;
+        cloud.points[i].z = nan;
+      }
+      else
+      {
+        projection_->get3DCoordinates (&point, &vertex, 1);
+        cloud.points[i].x = vertex.x;
+        cloud.points[i].y = vertex.y;
+        cloud.points[i].z = vertex.z;
+      }
+      point.point.x += 1;
+      ++i;
+    }
+    point.point.y += 1;
+  }
+}
