@@ -155,6 +155,7 @@ class DepthSenseViewer
       {
         if (new_cloud_)
         {
+          displaySettings ();
           boost::mutex::scoped_lock lock (new_cloud_mutex_);
           viewer_.updatePointCloud (new_cloud_, "cloud");
           new_cloud_.reset ();
@@ -273,6 +274,9 @@ class DepthSenseViewer
       boost::format name_fmt ("text%i");
       const char* TF[] = {"off", "median", "average"};
       std::vector<boost::format> entries;
+      // Framerate
+      entries.push_back(boost::format("framerate: %.1f") % grabber_.getFramesPerSecond());
+      // Confidence threshold
       entries.push_back (boost::format ("confidence threshold: %i") % threshold_);
       // Temporal filter settings
       std::string tfs = boost::str (boost::format (", window size %i") % window_);
