@@ -46,7 +46,8 @@
 #include <pcl/common/time.h>
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/filters/fast_bilateral.h>
-//#include <pcl/io/io_exception.h>
+#include <pcl/io/pcd_io.h>
+
 #include "io_exception.h"
 
 #include "depth_sense_grabber.h"
@@ -80,6 +81,7 @@ printHelp (int, char **argv)
   std::cout << "     * b   : toggle bilateral filtering"                                      << std::endl;
   std::cout << "     * a/A : increase or decrease bilateral filter spatial sigma"             << std::endl;
   std::cout << "     * z/Z : increase or decrease bilateral filter range sigma"               << std::endl;
+  std::cout << "     * s   : save the last grabbed cloud to disk"                             << std::endl;
   std::cout << "     * h   : print the list of standard PCL viewer commands"                  << std::endl;
   std::cout << std::endl;
   std::cout << "Notes:"                                                                       << std::endl;
@@ -135,9 +137,6 @@ class DepthSenseViewer
     , with_bilateral_ (false)
     {
       viewer_.registerKeyboardCallback (&DepthSenseViewer::keyboardCallback, *this);
-      typename PointCloudT::Ptr dummy (new PointCloudT);
-      viewer_.addPointCloud (dummy, "cloud");
-      viewer_.resetCamera ();
     }
 
     ~DepthSenseViewer ()
@@ -155,9 +154,14 @@ class DepthSenseViewer
       {
         if (new_cloud_)
         {
-          displaySettings ();
           boost::mutex::scoped_lock lock (new_cloud_mutex_);
-          viewer_.updatePointCloud (new_cloud_, "cloud");
+          if (!viewer_.updatePointCloud (new_cloud_, "cloud"))
+          {
+            viewer_.addPointCloud (new_cloud_, "cloud");
+            viewer_.resetCamera ();
+          }
+          displaySettings ();
+          last_cloud_ = new_cloud_;
           new_cloud_.reset ();
         }
         viewer_.spinOnce (1, true);
@@ -262,6 +266,15 @@ class DepthSenseViewer
           pcl::console::print_value ("%.2f\n", r);
           bilateral_.setSigmaR (r);
         }
+        if (event.getKeyCode () == 's')
+        {
+          boost::format fmt ("DS_%s_%u.pcd");
+          std::string fn = boost::str (fmt % grabber_.getDeviceSerialNumber ().c_str () % last_cloud_->header.stamp);
+          pcl::io::savePCDFileBinaryCompressed (fn, *last_cloud_);
+          pcl::console::print_info ("Saved point cloud: ");
+          pcl::console::print_value (fn.c_str ());
+          pcl::console::print_info ("\n");
+        }
         displaySettings ();
       }
     }
@@ -306,6 +319,7 @@ class DepthSenseViewer
 
     mutable boost::mutex new_cloud_mutex_;
     typename PointCloudT::ConstPtr new_cloud_;
+    typename PointCloudT::ConstPtr last_cloud_;
 
 };
 
