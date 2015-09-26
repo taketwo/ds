@@ -30,7 +30,7 @@ if(DSSDK_DIR)
   if(MSVC)
     set(DSSDK_LIBRARIES_NAMES DepthSense)
   else()
-    set(DSSDK_LIBRARIES_NAMES DepthSense DepthSensePlugins turbojpeg usb-1.0)
+    set(DSSDK_LIBRARIES_NAMES DepthSense DepthSensePlugins turbojpeg)
   endif()
   foreach(LIB ${DSSDK_LIBRARIES_NAMES})
     find_library(DSSDK_LIBRARY_${LIB}

@@ -50,13 +50,13 @@
 namespace pcl
 {
 
-  class DepthSenseGrabber;
-
   namespace io
   {
 
     namespace depth_sense
     {
+
+      struct DepthSenseGrabberImpl;
 
       /** A helper class for enumerating and managing access to DepthSense
         * devices. */
@@ -90,17 +90,17 @@ namespace pcl
           /** Capture first available device and associate it with a given
             * grabber instance. */
           std::string
-          captureDevice (DepthSenseGrabber* grabber);
+          captureDevice (DepthSenseGrabberImpl* grabber);
 
           /** Capture the device with given index and associate it with a given
             * grabber instance. */
           std::string
-          captureDevice (DepthSenseGrabber* grabber, size_t index);
+          captureDevice (DepthSenseGrabberImpl* grabber, size_t index);
 
           /** Capture the device with given serial number and associate it with
             * a given grabber instance. */
           std::string
-          captureDevice (DepthSenseGrabber* grabber, const std::string& sn);
+          captureDevice (DepthSenseGrabberImpl* grabber, const std::string& sn);
 
           /** Release DepthSense device with given serial number. */
           void
@@ -125,7 +125,7 @@ namespace pcl
           DepthSenseDeviceManager ();
 
           std::string
-          captureDevice (DepthSenseGrabber* grabber, DepthSense::Device device);
+          captureDevice (DepthSenseGrabberImpl* grabber, DepthSense::Device device);
 
           inline bool
           isCaptured (const std::string& sn) const
@@ -142,7 +142,7 @@ namespace pcl
 
           struct CapturedDevice
           {
-            DepthSenseGrabber* grabber;
+            DepthSenseGrabberImpl* grabber;
             DepthSense::DepthNode depth_node;
             DepthSense::ColorNode color_node;
           };

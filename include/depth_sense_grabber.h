@@ -38,33 +38,15 @@
 #ifndef PCL_IO_DEPTH_SENSE_GRABBER_H
 #define PCL_IO_DEPTH_SENSE_GRABBER_H
 
-#include <boost/thread/mutex.hpp>
-
+#include <pcl/io/grabber.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
-#include <pcl/io/grabber.h>
-
-#include <queue>
-
-#include <DepthSense.hxx>
-
-// TODO: remove when merging upstream
-#include "depth_sense/time.h"
 
 namespace pcl
 {
 
-  namespace io
-  {
-
-    template <typename T> class Buffer;
-
-    namespace depth_sense
-    {
-      class DepthSenseDeviceManager;
-    }
-
-  }
+  // Forward declaration of a class that contains actual grabber implementation
+  namespace io { namespace depth_sense { struct DepthSenseGrabberImpl; } }
 
   /** Grabber for DepthSense devices (e.g. Creative Senz3D, SoftKinetic DS325).
     *
@@ -157,80 +139,13 @@ namespace pcl
       disableTemporalFiltering ();
 
       /** Get the serial number of device captured by the grabber. */
-      inline std::string
-      getDeviceSerialNumber () const
-      {
-        return (device_id_);
-      }
+      std::string
+      getDeviceSerialNumber () const;
 
     private:
 
-      void
-      setCameraParameters (const DepthSense::StereoCameraParameters& parameters);
-
-      void
-      configureDepthNode (DepthSense::DepthNode node) const;
-
-      void
-      configureColorNode (DepthSense::ColorNode node) const;
-
-      /** A callback for processing depth data.
-        *
-        * It is supposed to be called from the DepthSense::Context thread that
-        * is managed by DepthSenseDeviceManager. */
-      void
-      onDepthDataReceived (DepthSense::DepthNode node, DepthSense::DepthNode::NewSampleReceivedData data);
-
-      /** A callback for processing color data.
-        *
-        * It is supposed to be called from the DepthSense::Context thread that
-        * is managed by DepthSenseDeviceManager. */
-      void
-      onColorDataReceived (DepthSense::ColorNode node, DepthSense::ColorNode::NewSampleReceivedData data);
-
-      template <typename Point> void
-      computeXYZ (PointCloud<Point>& cloud);
-
-      // The manager should be able to invoke callbacks and configuration
-      friend class pcl::io::depth_sense::DepthSenseDeviceManager;
-
-      // Signals to indicate whether new clouds are available
-      boost::signals2::signal<sig_cb_depth_sense_point_cloud>* point_cloud_signal_;
-      boost::signals2::signal<sig_cb_depth_sense_point_cloud_rgba>* point_cloud_rgba_signal_;
-
-      /// Serial number of the device captured by this grabber
-      std::string device_id_;
-
-      bool is_running_;
-
-      int confidence_threshold_;
-      TemporalFilteringType temporal_filtering_type_;
-
-      boost::shared_ptr<DepthSense::ProjectionHelper> projection_;
-
-      /// Indicates whether there are subscribers for PointXYZ signal. This is
-      /// computed and stored on start()
-      bool need_xyz_;
-
-      /// Indicates whether there are subscribers for PointXYZRGBA signal. This
-      /// is computed and stored on start()
-      bool need_xyzrgba_;
-
-      /// Temporary buffer to store color data
-      std::vector<uint8_t> color_data_;
-
-      EventFrequency frequency_;
-      mutable boost::mutex fps_mutex_;
-
-      static const int FRAMERATE = 30;
-      static const int WIDTH = 320;
-      static const int HEIGHT = 240;
-      static const int SIZE = WIDTH * HEIGHT;
-      static const int COLOR_WIDTH = 640;
-      static const int COLOR_HEIGHT = 480;
-      static const int COLOR_SIZE = COLOR_WIDTH * COLOR_HEIGHT;
-
-      boost::shared_ptr<pcl::io::Buffer<float> > depth_buffer_;
+      pcl::io::depth_sense::DepthSenseGrabberImpl* p_;
+      friend struct pcl::io::depth_sense::DepthSenseGrabberImpl;
 
   };
 

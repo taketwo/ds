@@ -35,251 +35,65 @@
  *
  */
 
-#include <boost/lexical_cast.hpp>
-
-#include <pcl/common/io.h>
-
-#include "buffers.h"
 #include "depth_sense_grabber.h"
-#include "depth_sense/depth_sense_device_manager.h"
-
-using namespace pcl::io::depth_sense;
+#include "depth_sense/depth_sense_grabber_impl.h"
 
 pcl::DepthSenseGrabber::DepthSenseGrabber (const std::string& device_id)
 : Grabber ()
-, is_running_ (false)
-, confidence_threshold_ (50)
-, temporal_filtering_type_ (DepthSense_None)
-, color_data_ (COLOR_SIZE * 3)
-, depth_buffer_ (new pcl::io::SingleBuffer<float> (SIZE))
+, p_ (new pcl::io::depth_sense::DepthSenseGrabberImpl (this, device_id))
 {
-  if (device_id == "")
-    device_id_ = DepthSenseDeviceManager::getInstance ()->captureDevice (this);
-  else if (device_id[0] == '#')
-    device_id_ = DepthSenseDeviceManager::getInstance ()->captureDevice (this, boost::lexical_cast<int> (device_id.substr (1)) - 1);
-  else
-    device_id_ = DepthSenseDeviceManager::getInstance ()->captureDevice (this, device_id);
-
-  point_cloud_signal_ = createSignal<sig_cb_depth_sense_point_cloud> ();
-  point_cloud_rgba_signal_ = createSignal<sig_cb_depth_sense_point_cloud_rgba> ();
 }
 
 pcl::DepthSenseGrabber::~DepthSenseGrabber () throw ()
 {
-  stop ();
-
-  DepthSenseDeviceManager::getInstance ()->releaseDevice (device_id_);
-
-  disconnect_all_slots<sig_cb_depth_sense_point_cloud> ();
-  disconnect_all_slots<sig_cb_depth_sense_point_cloud_rgba> ();
+  delete p_;
 }
 
 void
 pcl::DepthSenseGrabber::start ()
 {
-  need_xyz_ = num_slots<sig_cb_depth_sense_point_cloud> () > 0;
-  need_xyzrgba_ = num_slots<sig_cb_depth_sense_point_cloud_rgba> () > 0;
-
-  if (!is_running_)
-  {
-    DepthSenseDeviceManager::getInstance ()->reconfigureDevice (device_id_);
-    DepthSenseDeviceManager::getInstance ()->startDevice (device_id_);
-    frequency_.reset ();
-    is_running_ = true;
-  }
+  p_->start();
 }
 
 void
 pcl::DepthSenseGrabber::stop ()
 {
-  if (is_running_)
-  {
-    DepthSenseDeviceManager::getInstance ()->stopDevice (device_id_);
-    is_running_ = false;
-  }
+  p_->stop();
 }
 
 bool
 pcl::DepthSenseGrabber::isRunning () const
 {
-  return (is_running_);
+  return (p_->is_running_);
 }
 
 float
 pcl::DepthSenseGrabber::getFramesPerSecond () const
 {
-  boost::mutex::scoped_lock lock (fps_mutex_);
-  return (frequency_.getFrequency ());
+  return (p_->getFramesPerSecond());
 }
 
 void
 pcl::DepthSenseGrabber::setConfidenceThreshold (int threshold)
 {
-  confidence_threshold_ = threshold;
-  DepthSenseDeviceManager::getInstance ()->reconfigureDevice (device_id_);
+  p_->setConfidenceThreshold (threshold);
 }
 
 void
 pcl::DepthSenseGrabber::enableTemporalFiltering (TemporalFilteringType type, size_t window_size)
 {
-  if (temporal_filtering_type_ != type ||
-      (type != DepthSense_None && depth_buffer_->size () != window_size))
-  {
-    bool was_running = is_running_;
-    if (was_running)
-      stop ();
-    switch (type)
-    {
-      case DepthSense_None:
-        {
-          depth_buffer_.reset (new pcl::io::SingleBuffer<float> (SIZE));
-          break;
-        }
-      case DepthSense_Median:
-        {
-          depth_buffer_.reset (new pcl::io::MedianBuffer<float> (SIZE, window_size));
-          break;
-        }
-      case DepthSense_Average:
-        {
-          depth_buffer_.reset (new pcl::io::AverageBuffer<float> (SIZE, window_size));
-          break;
-        }
-    }
-    temporal_filtering_type_ = type;
-    if (was_running)
-      start ();
-  }
+  p_->enableTemporalFiltering (type, window_size);
 }
 
 void
 pcl::DepthSenseGrabber::disableTemporalFiltering ()
 {
-  enableTemporalFiltering (DepthSense_None, 1);
+  p_->enableTemporalFiltering (DepthSense_None, 1);
 }
 
-void
-pcl::DepthSenseGrabber::setCameraParameters (const DepthSense::StereoCameraParameters& parameters)
+std::string
+pcl::DepthSenseGrabber::getDeviceSerialNumber () const
 {
-  projection_.reset (new DepthSense::ProjectionHelper (parameters));
+  return (p_->device_id_);
 }
 
-void
-pcl::DepthSenseGrabber::configureDepthNode (DepthSense::DepthNode node) const
-{
-  DepthSense::DepthNode::Configuration config = node.getConfiguration ();
-  config.frameFormat = DepthSense::FRAME_FORMAT_QVGA;
-  config.framerate = FRAMERATE;
-  config.mode = DepthSense::DepthNode::CAMERA_MODE_CLOSE_MODE;
-  config.saturation = false;
-  node.setEnableDepthMapFloatingPoint (true);
-  node.setEnableUvMap (true);
-  node.setEnableConfidenceMap (true);
-  node.setConfiguration (config);
-}
-
-void
-pcl::DepthSenseGrabber::configureColorNode (DepthSense::ColorNode node) const
-{
-  DepthSense::ColorNode::Configuration config = node.getConfiguration ();
-  config.frameFormat = DepthSense::FRAME_FORMAT_VGA;
-  config.compression = DepthSense::COMPRESSION_TYPE_MJPEG;
-  config.powerLineFrequency = DepthSense::POWER_LINE_FREQUENCY_50HZ;
-  config.framerate = FRAMERATE;
-  node.setEnableColorMap (true);
-  node.setConfiguration (config);
-}
-
-void
-pcl::DepthSenseGrabber::onDepthDataReceived (DepthSense::DepthNode node, DepthSense::DepthNode::NewSampleReceivedData data)
-{
-  fps_mutex_.lock ();
-  frequency_.event ();
-  fps_mutex_.unlock ();
-
-  static const float nan = std::numeric_limits<float>::quiet_NaN ();
-
-  std::vector<float> depth_data (SIZE);
-  memcpy (depth_data.data (), &data.depthMapFloatingPoint[0], SIZE * sizeof (float));
-  for (int i = 0; i < SIZE; i++)
-    if (data.confidenceMap[i] < confidence_threshold_)
-      depth_data[i] = nan;
-  depth_buffer_->push (depth_data);
-
-  pcl::PointCloud<pcl::PointXYZ>::Ptr xyz_cloud;
-  pcl::PointCloud<pcl::PointXYZRGBA>::Ptr xyzrgba_cloud;
-
-  if (need_xyz_)
-  {
-    xyz_cloud.reset (new pcl::PointCloud<pcl::PointXYZ> (WIDTH, HEIGHT));
-    xyz_cloud->is_dense = false;
-
-    computeXYZ (*xyz_cloud);
-
-    point_cloud_signal_->operator () (xyz_cloud);
-  }
-
-  if (need_xyzrgba_)
-  {
-    xyzrgba_cloud.reset (new pcl::PointCloud<pcl::PointXYZRGBA> (WIDTH, HEIGHT));
-    xyzrgba_cloud->is_dense = false;
-
-    if (need_xyz_)
-      copyPointCloud (*xyz_cloud, *xyzrgba_cloud);
-    else
-      computeXYZ (*xyzrgba_cloud);
-
-    for (int i = 0; i < SIZE; i++)
-    {
-      const DepthSense::UV& uv = data.uvMap[i];
-      int row = static_cast<int> (uv.v * COLOR_HEIGHT);
-      int col = static_cast<int> (uv.u * COLOR_WIDTH);
-      int pixel = row * COLOR_WIDTH + col;
-      if (pixel >=0 && pixel < COLOR_WIDTH * COLOR_HEIGHT)
-        memcpy (&xyzrgba_cloud->points[i].rgba, &color_data_[pixel * 3], 3);
-    }
-
-    point_cloud_rgba_signal_->operator () (xyzrgba_cloud);
-  }
-}
-
-void
-pcl::DepthSenseGrabber::onColorDataReceived (DepthSense::ColorNode node, DepthSense::ColorNode::NewSampleReceivedData data)
-{
-  if (need_xyzrgba_)
-    memcpy (&color_data_[0], data.colorMap, color_data_.size ());
-}
-
-template <typename Point> void
-pcl::DepthSenseGrabber::computeXYZ (PointCloud<Point>& cloud)
-{
-  static const float nan = std::numeric_limits<float>::quiet_NaN ();
-
-  int i = 0;
-  DepthSense::FPExtended2DPoint point (DepthSense::Point2D (0, 0), 0);
-  DepthSense::FPVertex vertex;
-  while (point.point.y < HEIGHT)
-  {
-    point.point.x = 0;
-    while (point.point.x < WIDTH)
-    {
-      point.depth = (*depth_buffer_)[i];
-      if (pcl_isnan (point.depth))
-      {
-        cloud.points[i].x = nan;
-        cloud.points[i].y = nan;
-        cloud.points[i].z = nan;
-      }
-      else
-      {
-        projection_->get3DCoordinates (&point, &vertex, 1);
-        cloud.points[i].x = vertex.x;
-        cloud.points[i].y = vertex.y;
-        cloud.points[i].z = vertex.z;
-      }
-      point.point.x += 1;
-      ++i;
-    }
-    point.point.y += 1;
-  }
-}

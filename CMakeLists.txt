@@ -27,6 +27,7 @@ add_definitions(
 
 add_library(depth_sense
   src/depth_sense/depth_sense_device_manager.cpp
+  src/depth_sense/depth_sense_grabber_impl.cpp
   src/depth_sense_grabber.cpp
   src/io_exception.cpp
 )
