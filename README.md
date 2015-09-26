@@ -2,6 +2,10 @@ This is a [PCL][] grabber for DepthSense devices (e.g. [Creative Senz3D][],
 [SoftKinetic DS325][]) that supports both Linux and Windows versions of the
 [SDK][].
 
+**Note:** the grabber [has been merged][PR1230] into upstream PCL and will be a
+part of the next release (1.8.0). This repository is kept only for historical
+reasons.
+
 Requirements
 ============
 
@@ -96,3 +100,4 @@ Notes:
 [Creative Senz3D]: http://de.creative.com/p/web-cameras/creative-senz3d
 [SoftKinetic DS325]: http://www.softkinetic.com/language/fr-BE/Products/DepthSenseCameras
 [SDK]: http://www.softkinetic.com/support/download.aspx
+[PR1230]: https://github.com/PointCloudLibrary/pcl/pull/1230
